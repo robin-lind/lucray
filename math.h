@@ -36,8 +36,8 @@ namespace luc
 template <typename T>
 union Vector2T
 {
-    Vector2T() = default;
-    Vector2T(T x_ ) : e{ x_, x_ } {}
+    Vector2T() {}
+    Vector2T(T x_) : e{ x_, x_ } {}
     Vector2T(T x_, T y_) : e{ x_, y_ } {}
     struct
     {
@@ -57,8 +57,11 @@ union Vector2T
 template <typename T>
 union Vector3T
 {
-    Vector3T() = default;
-    Vector3T(T x_ ) : e{ x_, x_, x_ } {}
+    Vector3T() {}
+    Vector3T(T x_) : e{ x_, x_, x_ } {}
+    Vector3T(const Vector2T<T>& v, T s) : e{ v.x, v.y, s } {}
+    Vector3T(T s, const Vector2T<T>& v) : e{ s, v.x, v.y } {}
+    Vector3T(const Vector2T<T>& v) : Vector3T(v, static_cast<T>(0)) {}
     Vector3T(T x_, T y_, T z_) : e{ x_, y_, z_ } {}
     struct
     {
@@ -72,14 +75,50 @@ union Vector3T
     {
         T r, g, b;
     };
+    struct
+    {
+        Vector2T<T> xy;
+        T z0;
+    };
+    struct
+    {
+        T x0;
+        Vector2T<T> yz;
+    };
+    struct
+    {
+        Vector2T<T> uv;
+        T w0;
+    };
+    struct
+    {
+        T u0;
+        Vector2T<T> vw;
+    };
+    struct
+    {
+        Vector2T<T> rg;
+        T b0;
+    };
+    struct
+    {
+        T r0;
+        Vector2T<T> gb;
+    };
     std::array<T, 3> e{};
     typedef T value_type;
 };
 template <typename T>
 union Vector4T
 {
-    Vector4T() = default;
-    Vector4T(T x_ ) : e{ x_, x_, x_, x_ } {}
+    Vector4T() {}
+    Vector4T(T x_) : e{ x_, x_, x_, x_ } {}
+    Vector4T(const Vector2T<T>& u, const Vector2T<T>& v) : e{ u.x, u.y, v.x, v.y } {}
+    Vector4T(const Vector2T<T>& v, T s, T t) : e{ v.x, v.y, s, t } {}
+    Vector4T(const Vector2T<T>& v) : Vector4T(v, static_cast<T>(0), static_cast<T>(0)) {}
+    Vector4T(const Vector3T<T>& v, T s) : e{ v.x, v.y, v.z, s } {}
+    Vector4T(T s, const Vector3T<T>& v) : e{ s, v.x, v.y, v.z } {}
+    Vector4T(const Vector3T<T>& v) : Vector4T(v, static_cast<T>(0)) {}
     Vector4T(T x_, T y_, T z_, T w_) : e{ x_, y_, z_, w_ } {}
     struct
     {
@@ -89,6 +128,48 @@ union Vector4T
     {
         T r, g, b, a;
     };
+    struct
+    {
+        Vector3T<T> xyz;
+        T w0;
+    };
+    struct
+    {
+        T x0;
+        Vector3T<T> yzw;
+    };
+    struct
+    {
+        Vector2T<T> xy;
+        Vector2T<T> zw;
+    };
+    struct
+    {
+        T x1;
+        Vector2T<T> yz;
+        T w1;
+    };
+    struct
+    {
+        Vector3T<T> rgb;
+        T a0;
+    };
+    struct
+    {
+        T r0;
+        Vector3T<T> gba;
+    };
+    struct
+    {
+        Vector2T<T> rg;
+        Vector2T<T> ba;
+    };
+    struct
+    {
+        T r1;
+        Vector2T<T> gb;
+        T a1;
+    };
     std::array<T, 4> e{};
     typedef T value_type;
 };
@@ -96,8 +177,10 @@ template <typename T>
 union Normal2T
 {
     Normal2T() = default;
-    Normal2T(T x_ ) : e{ x_, x_ } {}
+    Normal2T(T x_) : e{ x_, x_ } {}
     Normal2T(T x_, T y_) : e{ x_, y_ } {}
+    Normal2T(const Vector2T<T>& v) : e{ v.x, v.y } {}
+    Normal2T(const Vector3T<T>& v) : e{ v.x, v.y } {}
     struct
     {
         T x, y;
@@ -109,9 +192,10 @@ template <typename T>
 union Matrix3T
 {
     Matrix3T() = default;
-    Matrix3T(T x_ ) : Matrix3T({ x_, x_, x_ }) {}
-    Matrix3T(Vector3T<T> x_ ) : x(x_), y(x_), z(x_) {}
+    Matrix3T(T x_) : Matrix3T({ x_, x_, x_ }) {}
+    Matrix3T(Vector3T<T> x_) : x(x_), y(x_), z(x_) {}
     Matrix3T(Vector3T<T> x_, Vector3T<T> y_, Vector3T<T> z_) : x(x_), y(y_), z(z_) {}
+    Matrix3T(const std::array<T, 9>& a) : e(a) {}
     struct
     {
         Vector3T<T> x, y, z;
@@ -124,9 +208,10 @@ template <typename T>
 union Matrix4T
 {
     Matrix4T() = default;
-    Matrix4T(T x_ ) : Matrix4T({ x_, x_, x_, x_ }) {}
-    Matrix4T(Vector4T<T> x_ ) : x(x_), y(x_), z(x_), w(x_) {}
+    Matrix4T(T x_) : Matrix4T({ x_, x_, x_, x_ }) {}
+    Matrix4T(Vector4T<T> x_) : x(x_), y(x_), z(x_), w(x_) {}
     Matrix4T(Vector4T<T> x_, Vector4T<T> y_, Vector4T<T> z_, Vector4T<T> w_) : x(x_), y(y_), z(z_), w(w_) {}
+    Matrix4T(const std::array<T, 16>& a) : e(a) {}
     struct
     {
         Vector4T<T> x, y, z, w;
@@ -139,9 +224,10 @@ template <typename T>
 union Affine3T
 {
     Affine3T() = default;
-    Affine3T(T x_ ) : Affine3T({ x_, x_, x_ }) {}
-    Affine3T(Vector3T<T> x_ ) : x(x_), y(x_), z(x_), w(x_) {}
+    Affine3T(T x_) : Affine3T({ x_, x_, x_ }) {}
+    Affine3T(Vector3T<T> x_) : x(x_), y(x_), z(x_), w(x_) {}
     Affine3T(Vector3T<T> x_, Vector3T<T> y_, Vector3T<T> z_, Vector3T<T> w_) : x(x_), y(y_), z(z_), w(w_) {}
+    Affine3T(const std::array<T, 12>& a) : e(a) {}
     struct
     {
         Vector3T<T> x, y, z, w;
@@ -154,9 +240,10 @@ template <typename T>
 union Affine4T
 {
     Affine4T() = default;
-    Affine4T(T x_ ) : Affine4T({ x_, x_, x_, x_ }) {}
-    Affine4T(Vector4T<T> x_ ) : x(x_), y(x_), z(x_) {}
+    Affine4T(T x_) : Affine4T({ x_, x_, x_, x_ }) {}
+    Affine4T(Vector4T<T> x_) : x(x_), y(x_), z(x_) {}
     Affine4T(Vector4T<T> x_, Vector4T<T> y_, Vector4T<T> z_) : x(x_), y(y_), z(z_) {}
+    Affine4T(const std::array<T, 12>& a) : e(a) {}
     struct
     {
         Vector4T<T> x, y, z;
@@ -169,7 +256,7 @@ union Affine4T
 template <typename T>
 auto Sum(const T& a)
 {
-    if constexpr (std::is_same_v<T, Vector2T<typename T::value_type>>) return a.x + a.y;
+    /**/ if constexpr (std::is_same_v<T, Vector2T<typename T::value_type>>) return a.x + a.y;
     else if constexpr (std::is_same_v<T, Vector3T<typename T::value_type>>) return a.x + a.y + a.z;
     else if constexpr (std::is_same_v<T, Vector4T<typename T::value_type>>) return a.x + a.y + a.z + a.w;
     else return std::accumulate(std::begin(a.e), std::end(a.e), static_cast<typename T::value_type>(0));
@@ -265,6 +352,13 @@ auto Normalize(const T& a)
 {
     return a / Length(a);
 }
+template <typename T>
+auto NormalizedWithLength(const T& a)
+{
+    const auto length = Length(a);
+    /**/ if constexpr (std::is_same_v<T, Vector2T<typename T::value_type>>) return Vector3T<typename T::value_type>(a / length, length);
+    else if constexpr (std::is_same_v<T, Vector3T<typename T::value_type>>) return Vector4T<typename T::value_type>(a / length, length);
+}
 
 typedef Vector2T<float> Vector2;
 typedef Vector3T<float> Vector3;
@@ -274,23 +368,6 @@ typedef Matrix3T<float> Matrix3;
 typedef Matrix4T<float> Matrix4;
 typedef Affine3T<float> Affine3;
 typedef Affine4T<float> Affine4;
-
-auto Ehm(const Vector4& a, const Vector4& b)
-{
-    //return a + b;
-    //return a - b;
-    //return a * b;
-    //return a / b;
-    //return a + 1.f;
-    //return 1.f + a;
-    //return Dot(a, b);
-    //return Cross(a, b);
-    //return LengthSquared(a);
-    //return Length(a);
-    //return DistanceSquared(a, b);
-    //return Distance(a, b);
-    return Normalize(a);
-}
 
 };
 
