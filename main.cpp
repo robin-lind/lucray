@@ -26,6 +26,5 @@
 
 int main()
 {
-    const auto ehm = luc::Ehm({}, {});
     return 0;
 }

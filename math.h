@@ -33,7 +33,14 @@
 namespace luc
 {
 
-template<typename T, size_t N> union VectorTN;
+template<typename T, size_t N>
+union VectorTN
+{
+    VectorTN() {}
+    VectorTN(T x_) { std::fill(std::begin(e), std::end(e), x_); }
+    VectorTN(const std::array<T, N>& a) : e(a) {}
+    std::array<T, N> e{};
+};
 
 template <typename T>
 union VectorTN<T,2>
@@ -55,7 +62,6 @@ union VectorTN<T,2>
         T w, h;
     };
     std::array<T, 2> e{};
-    typedef T value_type;
 };
 template <typename T>
 union VectorTN<T,3>
@@ -110,7 +116,6 @@ union VectorTN<T,3>
         VectorTN<T,2> gb;
     };
     std::array<T, 3> e{};
-    typedef T value_type;
 };
 template <typename T>
 union VectorTN<T,4>
@@ -176,86 +181,35 @@ union VectorTN<T,4>
         T a1;
     };
     std::array<T, 4> e{};
-    typedef T value_type;
 };
-template <typename T>
-union Normal2T
+// template <typename T>
+// union Normal2T
+// {
+//     Normal2T() = default;
+//     Normal2T(T x_) : e{ x_, x_ } {}
+//     Normal2T(T x_, T y_) : e{ x_, y_ } {}
+//     Normal2T(const VectorTN<T,2>& v) : e{ v.x, v.y } {}
+//     Normal2T(const VectorTN<T,3>& v) : e{ v.x, v.y } {}
+//     struct
+//     {
+//         T x, y;
+//     };
+//     std::array<T, 2> e{};
+//     typedef T value_type;
+// };
+
+template<typename T, size_t C, size_t R>
+union MatrixTNM
 {
-    Normal2T() = default;
-    Normal2T(T x_) : e{ x_, x_ } {}
-    Normal2T(T x_, T y_) : e{ x_, y_ } {}
-    Normal2T(const VectorTN<T,2>& v) : e{ v.x, v.y } {}
-    Normal2T(const VectorTN<T,3>& v) : e{ v.x, v.y } {}
-    struct
-    {
-        T x, y;
-    };
-    std::array<T, 2> e{};
-    typedef T value_type;
-};
-template <typename T>
-union Matrix3T
-{
-    Matrix3T() = default;
-    Matrix3T(T x_) : Matrix3T({ x_, x_, x_ }) {}
-    Matrix3T(VectorTN<T,3> x_) : x(x_), y(x_), z(x_) {}
-    Matrix3T(VectorTN<T,3> x_, VectorTN<T,3> y_, VectorTN<T,3> z_) : x(x_), y(y_), z(z_) {}
-    Matrix3T(const std::array<T, 9>& a) : e(a) {}
-    struct
-    {
-        VectorTN<T,3> x, y, z;
-    };
-    std::array<VectorTN<T,3>, 3> r;
-    std::array<T, 9> e{};
-    typedef T value_type;
-};
-template <typename T>
-union Matrix4T
-{
-    Matrix4T() = default;
-    Matrix4T(T x_) : Matrix4T({ x_, x_, x_, x_ }) {}
-    Matrix4T(VectorTN<T,4> x_) : x(x_), y(x_), z(x_), w(x_) {}
-    Matrix4T(VectorTN<T,4> x_, VectorTN<T,4> y_, VectorTN<T,4> z_, VectorTN<T,4> w_) : x(x_), y(y_), z(z_), w(w_) {}
-    Matrix4T(const std::array<T, 16>& a) : e(a) {}
-    struct
-    {
-        VectorTN<T,4> x, y, z, w;
-    };
-    std::array<VectorTN<T,4>, 4> r;
-    std::array<T, 16> e{};
-    typedef T value_type;
-};
-template <typename T>
-union Affine3T
-{
-    Affine3T() = default;
-    Affine3T(T x_) : Affine3T({ x_, x_, x_ }) {}
-    Affine3T(VectorTN<T,3> x_) : x(x_), y(x_), z(x_), w(x_) {}
-    Affine3T(VectorTN<T,3> x_, VectorTN<T,3> y_, VectorTN<T,3> z_, VectorTN<T,3> w_) : x(x_), y(y_), z(z_), w(w_) {}
-    Affine3T(const std::array<T, 12>& a) : e(a) {}
-    struct
-    {
-        VectorTN<T,3> x, y, z, w;
-    };
-    std::array<VectorTN<T,3>, 4> r;
-    std::array<T, 12> e{};
-    typedef T value_type;
-};
-template <typename T>
-union Affine4T
-{
-    Affine4T() = default;
-    Affine4T(T x_) : Affine4T({ x_, x_, x_, x_ }) {}
-    Affine4T(VectorTN<T,4> x_) : x(x_), y(x_), z(x_) {}
-    Affine4T(VectorTN<T,4> x_, VectorTN<T,4> y_, VectorTN<T,4> z_) : x(x_), y(y_), z(z_) {}
-    Affine4T(const std::array<T, 12>& a) : e(a) {}
-    struct
-    {
-        VectorTN<T,4> x, y, z;
-    };
-    std::array<VectorTN<T,4>, 3> r;
-    std::array<T, 12> e{};
-    typedef T value_type;
+    MatrixTNM() {};
+    MatrixTNM(T x_) { std::fill(std::begin(e), std::end(e), x_); }
+    MatrixTNM(const std::array<T, C*R>& a) : e(a) {}
+    MatrixTNM(const std::array<VectorTN<T,R>, C>& a) : c(a) {}
+    std::array<VectorTN<T,R>, C> c;
+
+    std::array<VectorTN<T,C>, R> r;
+
+    std::array<T, C*R> e{};
 };
 
 template <typename Op = std::plus<void>, typename T, size_t N>
@@ -355,11 +309,31 @@ auto NormalizedWithLength(const T& a)
 typedef VectorTN<float,2> Vector2;
 typedef VectorTN<float,3> Vector3;
 typedef VectorTN<float,4> Vector4;
-typedef Normal2T<float> Normal2;
-typedef Matrix3T<float> Matrix3;
-typedef Matrix4T<float> Matrix4;
-typedef Affine3T<float> Affine3;
-typedef Affine4T<float> Affine4;
+// typedef Normal2T<float> Normal2;
+typedef MatrixTNM<float,3,3> Matrix3;
+typedef MatrixTNM<float,4,4> Matrix4;
+typedef MatrixTNM<float,3,4> Affine3;
+typedef MatrixTNM<float,4,3> Affine4;
+
+template <typename T, size_t C, size_t R>
+auto Mul(const MatrixTNM<T,C,R>& mat, const VectorTN<T,C>& vec)
+{
+    auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> VectorTN<T,R>
+    {
+        return ((std::get<I>(mat.c) * std::get<I>(vec.e)) + ...);
+    } (std::make_index_sequence<C>{});
+    return result;
+}
+
+template <typename T, size_t C, size_t R>
+auto Mul(const MatrixTNM<T,C,R>& Left, const MatrixTNM<T,C,R>& Right)
+{
+    auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> MatrixTNM<T,C,R>
+    {
+        return { { Mul(Left, std::get<I>(Right.r)) ... } };
+    } (std::make_index_sequence<R>{});
+    return result;
+}
 
 };
 
