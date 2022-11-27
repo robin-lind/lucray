@@ -258,12 +258,12 @@ union Affine4T
     typedef T value_type;
 };
 
-template <typename T, size_t N>
-auto Sum(const VectorTN<T,N>& a)
+template <typename Op = std::plus<void>, typename T, size_t N>
+auto Collapse(const VectorTN<T,N>& a)
 {
-    /**/ if constexpr (N == 2) return a.x + a.y;
-    else if constexpr (N == 3) return a.x + a.y + a.z;
-    else if constexpr (N == 4) return a.x + a.y + a.z + a.w;
+    /**/ if constexpr (N == 2) return Op{} (a.x, a.y);
+    else if constexpr (N == 3) return Op{} (Op{} (a.x, a.y), a.z);
+    else if constexpr (N == 4) return Op{} (Op{} (Op{} (a.x, a.y), a.z), a.w);
     else if constexpr (N > 4) return std::accumulate(std::begin(a.e), std::end(a.e), static_cast<T>(0));
 }
 
@@ -307,7 +307,7 @@ template <typename T, typename U> void operator/=(T& a, U&& b) { a = a / b; }
 template <typename T>
 auto Dot(const T& a, const T& b)
 {
-    return Sum(a * b);
+    return Collapse(a * b);
 }
 template <typename T>
 VectorTN<T,3> Cross(const VectorTN<T,3>& a, const VectorTN<T,3>& b)
@@ -340,16 +340,16 @@ T Distance(const VectorTN<T,3>& a, const VectorTN<T,3>& b)
     return Length(a - b);
 }
 template <typename T>
-auto Normalize(const T& a)
+auto Normalize(T&& a)
 {
     return a / Length(a);
 }
-template <typename T>
+template <typename T, size_t N>
 auto NormalizedWithLength(const T& a)
 {
     const auto length = Length(a);
-    /**/ if constexpr (std::is_same_v<T, VectorTN<typename T::value_type,2>>) return VectorTN<typename T::value_type,3>(a / length, length);
-    else if constexpr (std::is_same_v<T, VectorTN<typename T::value_type,3>>) return VectorTN<typename T::value_type,4>(a / length, length);
+    /**/ if constexpr (N == 2) return VectorTN<T,3>(a / length, length);
+    else if constexpr (N == 3) return VectorTN<T,4>(a / length, length);
 }
 
 typedef VectorTN<float,2> Vector2;
