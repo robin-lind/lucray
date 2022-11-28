@@ -244,22 +244,26 @@ auto Reduce(const std::array<T,N>& a, const std::array<T,N>& b)
 template <typename Op, typename T, size_t N>
 auto Reduce(const VectorTN<T,N>& a, const VectorTN<T,N>& b)
 {
-    return VectorTN<T,N>(Reduce<Op, T, N>(a.E, b.E));
+    const auto result = VectorTN<T,N>(Reduce<Op, T, N>(a.E, b.E));
+    return result;
 }
 template <typename Op, typename T, typename U>
 auto Reduce(const T& a, const U& s) requires std::is_arithmetic_v<U>
 {
-    return Reduce<Op>(a, T { s });
+    const auto result = Reduce<Op>(a, T { s });
+    return result;
 }
 template <typename Op, typename T, typename U>
 auto Reduce(const U& s, const T& a) requires std::is_arithmetic_v<U>
 {
-    return Reduce<Op>(a, s);
+    const auto result = Reduce<Op>(a, s);
+    return result;
 }
 template <typename T>
 auto Dot(const T& a, const T& b)
 {
-    return Collapse(a * b);
+    const auto result = Collapse(a * b);
+    return result;
 }
 template <typename T>
 VectorTN<T,3> Cross(const VectorTN<T,3>& a, const VectorTN<T,3>& b)
@@ -274,27 +278,32 @@ VectorTN<T,3> Cross(const VectorTN<T,3>& a, const VectorTN<T,3>& b)
 template <typename T>
 auto LengthSquared(const T& a)
 {
-    return Dot(a, a);
+    const auto result = Dot(a, a);
+    return result;
 }
 template <typename T>
 auto Length(const T& a)
 {
-    return std::sqrt(LengthSquared(a));
+    const auto result = std::sqrt(LengthSquared(a));
+    return result;
 }
 template <typename T>
 T DistanceSquared(const VectorTN<T,3>& a, const VectorTN<T,3>& b)
 {
-    return LengthSquared(a - b);
+    const auto result = LengthSquared(a - b);
+    return result;
 }
 template <typename T>
 T Distance(const VectorTN<T,3>& a, const VectorTN<T,3>& b)
 {
-    return Length(a - b);
+    const auto result = Length(a - b);
+    return result;
 }
 template <typename T>
 auto Normalize(T&& a)
 {
-    return a / Length(a);
+    const auto result = a / Length(a);
+    return result;
 }
 template <typename T, size_t N>
 auto NormalizedWithLength(const T& a)
@@ -306,7 +315,7 @@ auto NormalizedWithLength(const T& a)
 template <typename Op = std::multiplies<void>, typename T, size_t C>
 auto Reduce(const MatrixTN<T,C>& mat, const VectorTN<T,C>& vec)
 {
-    auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> VectorTN<T,C>
+    const auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> VectorTN<T,C>
     {
         return (Op{}(std::get<I>(mat.C), std::get<I>(vec.E)) + ...);
     } (std::make_index_sequence<C>{});
@@ -315,11 +324,17 @@ auto Reduce(const MatrixTN<T,C>& mat, const VectorTN<T,C>& vec)
 template <typename Op = std::multiplies<void>, typename T, size_t C>
 auto Reduce(const MatrixTN<T,C>& left, const MatrixTN<T,C>& right)
 {
-    auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> MatrixTN<T,C>
+    const auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> MatrixTN<T,C>
     {
         return { { Reduce<Op>(left, std::get<I>(right.C)) ... } };
     } (std::make_index_sequence<C>{});
     return result;
+}
+template <typename Op = std::multiplies<void>, typename T>
+auto Reduce(const AffineT<T>& affine, const VectorTN<T,3>& vec)
+{
+    const auto result = Reduce<Op>(affine.transform, vec);
+    return result + affine.translation;
 }
 
 template <typename T, typename U> auto operator+(T&& a, U&& b) { return Reduce<std::plus<void>>(std::forward<T>(a), std::forward<U>(b)); }
@@ -330,8 +345,6 @@ template <typename T, typename U> void operator+=(T& a, U&& b) { a = a + b; }
 template <typename T, typename U> void operator-=(T& a, U&& b) { a = a - b; }
 template <typename T, typename U> void operator*=(T& a, U&& b) { a = a * b; }
 template <typename T, typename U> void operator/=(T& a, U&& b) { a = a / b; }
-// template <typename T, typename U> auto operator*(T&& a, U&& b) { return Reduce(std::forward<T>(a), std::forward<U>(b)); }
-// template <typename T, typename U> void operator*=(T& a, U&& b) { a = a * b; }
 
 typedef VectorTN<float,2> Vector2;
 typedef VectorTN<float,3> Vector3;
