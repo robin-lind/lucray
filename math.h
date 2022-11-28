@@ -37,18 +37,17 @@ template<typename T, size_t N>
 union VectorTN
 {
     VectorTN() {}
-    VectorTN(T x_) { std::fill(std::begin(e), std::end(e), x_); }
-    VectorTN(const std::array<T, N>& a) : e(a) {}
-    std::array<T, N> e{};
+    VectorTN(T x_) { std::fill(std::begin(E), std::end(E), x_); }
+    VectorTN(const std::array<T, N>& a) : E(a) {}
+    std::array<T, N> E{};
 };
-
 template <typename T>
 union VectorTN<T,2>
 {
     VectorTN() {}
-    VectorTN(T x_) : e{ x_, x_ } {}
-    VectorTN(T x_, T y_) : e{ x_, y_ } {}
-    VectorTN(const std::array<T, 2>& a) : e(a) {}
+    VectorTN(T x_) : E{ x_, x_ } {}
+    VectorTN(T x_, T y_) : E{ x_, y_ } {}
+    VectorTN(const std::array<T, 2>& a) : E(a) {}
     struct
     {
         T x, y;
@@ -61,18 +60,18 @@ union VectorTN<T,2>
     {
         T w, h;
     };
-    std::array<T, 2> e{};
+    std::array<T, 2> E{};
 };
 template <typename T>
 union VectorTN<T,3>
 {
     VectorTN() {}
-    VectorTN(T x_) : e{ x_, x_, x_ } {}
-    VectorTN(const VectorTN<T,2>& v, T s) : e{ v.x, v.y, s } {}
-    VectorTN(T s, const VectorTN<T,2>& v) : e{ s, v.x, v.y } {}
+    VectorTN(T x_) : E{ x_, x_, x_ } {}
+    VectorTN(const VectorTN<T,2>& v, T s) : E{ v.x, v.y, s } {}
+    VectorTN(T s, const VectorTN<T,2>& v) : E{ s, v.x, v.y } {}
     VectorTN(const VectorTN<T,2>& v) : VectorTN<T,3>(v, static_cast<T>(0)) {}
-    VectorTN(T x_, T y_, T z_) : e{ x_, y_, z_ } {}
-    VectorTN(const std::array<T, 3>& a) : e(a) {}
+    VectorTN(T x_, T y_, T z_) : E{ x_, y_, z_ } {}
+    VectorTN(const std::array<T, 3>& a) : E(a) {}
     struct
     {
         T x, y, z;
@@ -115,21 +114,21 @@ union VectorTN<T,3>
         T r0;
         VectorTN<T,2> gb;
     };
-    std::array<T, 3> e{};
+    std::array<T, 3> E{};
 };
 template <typename T>
 union VectorTN<T,4>
 {
     VectorTN() {}
-    VectorTN(T x_) : e{ x_, x_, x_, x_ } {}
-    VectorTN(const VectorTN<T,2>& u, const VectorTN<T,2>& v) : e{ u.x, u.y, v.x, v.y } {}
-    VectorTN(const VectorTN<T,2>& v, T s, T t) : e{ v.x, v.y, s, t } {}
+    VectorTN(T x_) : E{ x_, x_, x_, x_ } {}
+    VectorTN(const VectorTN<T,2>& u, const VectorTN<T,2>& v) : E{ u.x, u.y, v.x, v.y } {}
+    VectorTN(const VectorTN<T,2>& v, T s, T t) : E{ v.x, v.y, s, t } {}
     VectorTN(const VectorTN<T,2>& v) : VectorTN(v, static_cast<T>(0), static_cast<T>(0)) {}
-    VectorTN(const VectorTN<T,3>& v, T s) : e{ v.x, v.y, v.z, s } {}
-    VectorTN(T s, const VectorTN<T,3>& v) : e{ s, v.x, v.y, v.z } {}
+    VectorTN(const VectorTN<T,3>& v, T s) : E{ v.x, v.y, v.z, s } {}
+    VectorTN(T s, const VectorTN<T,3>& v) : E{ s, v.x, v.y, v.z } {}
     VectorTN(const VectorTN<T,3>& v) : VectorTN(v, static_cast<T>(0)) {}
-    VectorTN(T x_, T y_, T z_, T w_) : e{ x_, y_, z_, w_ } {}
-    VectorTN(const std::array<T, 4>& a) : e(a) {}
+    VectorTN(T x_, T y_, T z_, T w_) : E{ x_, y_, z_, w_ } {}
+    VectorTN(const std::array<T, 4>& a) : E(a) {}
     struct
     {
         T x, y, z, w;
@@ -180,7 +179,7 @@ union VectorTN<T,4>
         VectorTN<T,2> gb;
         T a1;
     };
-    std::array<T, 4> e{};
+    std::array<T, 4> E{};
 };
 // template <typename T>
 // union Normal2T
@@ -197,19 +196,32 @@ union VectorTN<T,4>
 //     std::array<T, 2> e{};
 //     typedef T value_type;
 // };
-
-template<typename T, size_t C, size_t R>
-union MatrixTNM
+template<typename T, size_t N>
+union MatrixTN
 {
-    MatrixTNM() {};
-    MatrixTNM(T x_) { std::fill(std::begin(e), std::end(e), x_); }
-    MatrixTNM(const std::array<T, C*R>& a) : e(a) {}
-    MatrixTNM(const std::array<VectorTN<T,R>, C>& a) : c(a) {}
-    std::array<VectorTN<T,R>, C> c;
-
-    std::array<VectorTN<T,C>, R> r;
-
-    std::array<T, C*R> e{};
+    MatrixTN() {};
+    MatrixTN(T v) { std::fill(std::begin(E), std::end(E), v); }
+    MatrixTN(const std::array<T,N*N>& a) : E(a) {}
+    MatrixTN(const std::array<VectorTN<T,N>,N>& c) : C(c) {}
+    std::array<VectorTN<T,N>,N> C;
+    std::array<T,N*N> E{};
+};
+template<typename T>
+union AffineT
+{
+    AffineT() {};
+    AffineT(T v) { std::fill(std::begin(E), std::end(E), v); }
+    AffineT(const std::array<VectorTN<T,3>,4>& columns_) : columns(columns_) {}
+    AffineT(const MatrixTN<T,3>& transform_, const VectorTN<T,3>& translation_) : transform(transform_), translation(translation_) { }
+    AffineT(const VectorTN<T,3>& tangent_, const VectorTN<T,3>& bi_tangent_, const VectorTN<T,3>& normal_, const VectorTN<T,3>& offset_) : columns({tangent_, bi_tangent_, normal_, offset_}) { }
+    std::array<VectorTN<T,3>,4> columns;
+    VectorTN<T,3> tangent, bi_tangent, normal, offset;
+    struct
+    {
+        MatrixTN<T,3> transform;
+        VectorTN<T,3> translation;
+    };
+    std::array<T,12> E{};
 };
 
 template <typename Op = std::plus<void>, typename T, size_t N>
@@ -218,9 +230,8 @@ auto Collapse(const VectorTN<T,N>& a)
     /**/ if constexpr (N == 2) return Op{} (a.x, a.y);
     else if constexpr (N == 3) return Op{} (Op{} (a.x, a.y), a.z);
     else if constexpr (N == 4) return Op{} (Op{} (Op{} (a.x, a.y), a.z), a.w);
-    else if constexpr (N > 4) return std::accumulate(std::begin(a.e), std::end(a.e), static_cast<T>(0));
+    else if constexpr (N > 4) return std::accumulate(std::begin(a.E), std::end(a.E), static_cast<T>(0));
 }
-
 template <typename Op, typename T, size_t N>
 auto Reduce(const std::array<T,N>& a, const std::array<T,N>& b)
 {
@@ -230,34 +241,21 @@ auto Reduce(const std::array<T,N>& a, const std::array<T,N>& b)
     } (std::make_index_sequence<N>{});
     return result;
 }
-
 template <typename Op, typename T, size_t N>
 auto Reduce(const VectorTN<T,N>& a, const VectorTN<T,N>& b)
 {
-    return VectorTN<T,N>(Reduce<Op, T, N>(a.e, b.e));
+    return VectorTN<T,N>(Reduce<Op, T, N>(a.E, b.E));
 }
-
 template <typename Op, typename T, typename U>
 auto Reduce(const T& a, const U& s) requires std::is_arithmetic_v<U>
 {
     return Reduce<Op>(a, T { s });
 }
-
 template <typename Op, typename T, typename U>
 auto Reduce(const U& s, const T& a) requires std::is_arithmetic_v<U>
 {
     return Reduce<Op>(a, s);
 }
-
-template <typename T, typename U> auto operator+(T&& a, U&& b) { return Reduce<std::plus<void>>(std::forward<T>(a), std::forward<U>(b)); }
-template <typename T, typename U> auto operator-(T&& a, U&& b) { return Reduce<std::minus<void>>(std::forward<T>(a), std::forward<U>(b)); }
-template <typename T, typename U> auto operator*(T&& a, U&& b) { return Reduce<std::multiplies<void>>(std::forward<T>(a), std::forward<U>(b)); }
-template <typename T, typename U> auto operator/(T&& a, U&& b) { return Reduce<std::divides<void>>(std::forward<T>(a), std::forward<U>(b)); }
-template <typename T, typename U> void operator+=(T& a, U&& b) { a = a + b; }
-template <typename T, typename U> void operator-=(T& a, U&& b) { a = a - b; }
-template <typename T, typename U> void operator*=(T& a, U&& b) { a = a * b; }
-template <typename T, typename U> void operator/=(T& a, U&& b) { a = a / b; }
-
 template <typename T>
 auto Dot(const T& a, const T& b)
 {
@@ -305,34 +303,55 @@ auto NormalizedWithLength(const T& a)
     /**/ if constexpr (N == 2) return VectorTN<T,3>(a / length, length);
     else if constexpr (N == 3) return VectorTN<T,4>(a / length, length);
 }
+template <typename Op = std::multiplies<void>, typename T, size_t C>
+auto Reduce(const MatrixTN<T,C>& mat, const VectorTN<T,C>& vec)
+{
+    auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> VectorTN<T,C>
+    {
+        return (Op{}(std::get<I>(mat.C), std::get<I>(vec.E)) + ...);
+    } (std::make_index_sequence<C>{});
+    return result;
+}
+template <typename Op = std::multiplies<void>, typename T, size_t C>
+auto Reduce(const MatrixTN<T,C>& left, const MatrixTN<T,C>& right)
+{
+    auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> MatrixTN<T,C>
+    {
+        return { { Reduce<Op>(left, std::get<I>(right.C)) ... } };
+    } (std::make_index_sequence<C>{});
+    return result;
+}
+
+template <typename T, typename U> auto operator+(T&& a, U&& b) { return Reduce<std::plus<void>>(std::forward<T>(a), std::forward<U>(b)); }
+template <typename T, typename U> auto operator-(T&& a, U&& b) { return Reduce<std::minus<void>>(std::forward<T>(a), std::forward<U>(b)); }
+template <typename T, typename U> auto operator*(T&& a, U&& b) { return Reduce<std::multiplies<void>>(std::forward<T>(a), std::forward<U>(b)); }
+template <typename T, typename U> auto operator/(T&& a, U&& b) { return Reduce<std::divides<void>>(std::forward<T>(a), std::forward<U>(b)); }
+template <typename T, typename U> void operator+=(T& a, U&& b) { a = a + b; }
+template <typename T, typename U> void operator-=(T& a, U&& b) { a = a - b; }
+template <typename T, typename U> void operator*=(T& a, U&& b) { a = a * b; }
+template <typename T, typename U> void operator/=(T& a, U&& b) { a = a / b; }
+// template <typename T, typename U> auto operator*(T&& a, U&& b) { return Reduce(std::forward<T>(a), std::forward<U>(b)); }
+// template <typename T, typename U> void operator*=(T& a, U&& b) { a = a * b; }
 
 typedef VectorTN<float,2> Vector2;
 typedef VectorTN<float,3> Vector3;
 typedef VectorTN<float,4> Vector4;
 // typedef Normal2T<float> Normal2;
-typedef MatrixTNM<float,3,3> Matrix3;
-typedef MatrixTNM<float,4,4> Matrix4;
-typedef MatrixTNM<float,3,4> Affine3;
-typedef MatrixTNM<float,4,3> Affine4;
+typedef MatrixTN<float,3> Matrix3;
+typedef MatrixTN<float,4> Matrix4;
+typedef AffineT<float> Affine;
 
-template <typename T, size_t C, size_t R>
-auto Mul(const MatrixTNM<T,C,R>& mat, const VectorTN<T,C>& vec)
+template <typename T>
+auto MakeOrthoNormalBase(const VectorTN<T,3>& normal)
 {
-    auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> VectorTN<T,R>
-    {
-        return ((std::get<I>(mat.c) * std::get<I>(vec.e)) + ...);
-    } (std::make_index_sequence<C>{});
-    return result;
-}
-
-template <typename T, size_t C, size_t R>
-auto Mul(const MatrixTNM<T,C,R>& Left, const MatrixTNM<T,C,R>& Right)
-{
-    auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> MatrixTNM<T,C,R>
-    {
-        return { { Mul(Left, std::get<I>(Right.r)) ... } };
-    } (std::make_index_sequence<R>{});
-    return result;
+    // pixar technique
+    // do not use sign(n.z), it can produce 0.0
+    const auto sign_z = normal.z >= 0.f ? static_cast<T>(1) : static_cast<T>(-1);
+    const auto a = static_cast<T>(-1) / (sign_z + normal.z);
+    const auto b = normal.x * normal.y * a;
+    const auto tangent = VectorTN<T,3>(static_cast<T>(1) + sign_z * normal.x * normal.x * a, sign_z * b, -sign_z * normal.x);
+    const auto bi_tangent = VectorTN<T,3>(b, sign_z + normal.y * normal.y * a, -normal.y);
+    return MatrixTN<T,3>({tangent, bi_tangent, normal});
 }
 
 };
