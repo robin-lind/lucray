@@ -259,6 +259,30 @@ auto Reduce(const U& s, const T& a) requires std::is_arithmetic_v<U>
     const auto result = Reduce<Op>(a, s);
     return result;
 }
+template <typename Op = std::multiplies<void>, typename T, size_t C>
+auto Reduce(const MatrixTN<T,C>& mat, const VectorTN<T,C>& vec)
+{
+    const auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> VectorTN<T,C>
+    {
+        return (Op{}(std::get<I>(mat.C), std::get<I>(vec.E)) + ...);
+    } (std::make_index_sequence<C>{});
+    return result;
+}
+template <typename Op = std::multiplies<void>, typename T, size_t C>
+auto Reduce(const MatrixTN<T,C>& left, const MatrixTN<T,C>& right)
+{
+    const auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> MatrixTN<T,C>
+    {
+        return { { Reduce<Op>(left, std::get<I>(right.C)) ... } };
+    } (std::make_index_sequence<C>{});
+    return result;
+}
+template <typename Op = std::multiplies<void>, typename T>
+auto Reduce(const AffineT<T>& affine, const VectorTN<T,3>& vec)
+{
+    const auto result = Reduce<Op>(affine.transform, vec);
+    return result + affine.translation;
+}
 template <typename T>
 auto Dot(const T& a, const T& b)
 {
@@ -311,30 +335,6 @@ auto NormalizedWithLength(const T& a)
     const auto length = Length(a);
     /**/ if constexpr (N == 2) return VectorTN<T,3>(a / length, length);
     else if constexpr (N == 3) return VectorTN<T,4>(a / length, length);
-}
-template <typename Op = std::multiplies<void>, typename T, size_t C>
-auto Reduce(const MatrixTN<T,C>& mat, const VectorTN<T,C>& vec)
-{
-    const auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> VectorTN<T,C>
-    {
-        return (Op{}(std::get<I>(mat.C), std::get<I>(vec.E)) + ...);
-    } (std::make_index_sequence<C>{});
-    return result;
-}
-template <typename Op = std::multiplies<void>, typename T, size_t C>
-auto Reduce(const MatrixTN<T,C>& left, const MatrixTN<T,C>& right)
-{
-    const auto result = [&]<std::size_t... I>(std::index_sequence<I...>) -> MatrixTN<T,C>
-    {
-        return { { Reduce<Op>(left, std::get<I>(right.C)) ... } };
-    } (std::make_index_sequence<C>{});
-    return result;
-}
-template <typename Op = std::multiplies<void>, typename T>
-auto Reduce(const AffineT<T>& affine, const VectorTN<T,3>& vec)
-{
-    const auto result = Reduce<Op>(affine.transform, vec);
-    return result + affine.translation;
 }
 
 template <typename T, typename U> auto operator+(T&& a, U&& b) { return Reduce<std::plus<void>>(std::forward<T>(a), std::forward<U>(b)); }
