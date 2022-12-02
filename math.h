@@ -38,9 +38,9 @@ union VectorTN
 {
     VectorTN() = default;
 
-    VectorTN(T x_)
+    VectorTN(T t)
     {
-        std::fill(std::begin(E), std::end(E), x_);
+        std::fill(std::begin(E), std::end(E), t);
     }
 
     VectorTN(const std::array<T, N>& a) :
@@ -54,8 +54,8 @@ union VectorTN<T, 2>
 {
     VectorTN() = default;
 
-    VectorTN(T x_) :
-      E{ x_, x_ } {}
+    VectorTN(T t) :
+      E{ t, t } {}
 
     VectorTN(T x_, T y_) :
       E{ x_, y_ } {}
@@ -86,8 +86,8 @@ union VectorTN<T, 3>
 {
     VectorTN() = default;
 
-    VectorTN(T x_) :
-      E{ x_, x_, x_ } {}
+    VectorTN(T t) :
+      E{ t, t, t } {}
 
     VectorTN(const VectorTN<T, 2>& v, T s) :
       E{ v.x, v.y, s } {}
@@ -163,8 +163,8 @@ union VectorTN<T, 4>
 {
     VectorTN() = default;
 
-    VectorTN(T x_) :
-      E{ x_, x_, x_, x_ } {}
+    VectorTN(T t) :
+      E{ t, t, t, t } {}
 
     VectorTN(const VectorTN<T, 2>& u, const VectorTN<T, 2>& v) :
       E{ u.x, u.y, v.x, v.y } {}
@@ -274,9 +274,9 @@ union MatrixTN
     MatrixTN() = default;
     ;
 
-    MatrixTN(T v)
+    MatrixTN(T t)
     {
-        std::fill(std::begin(E), std::end(E), v);
+        std::fill(std::begin(E), std::end(E), t);
     }
 
     MatrixTN(const std::array<T, N * N>& a) :
@@ -295,9 +295,9 @@ union AffineT
     AffineT() = default;
     ;
 
-    AffineT(T v)
+    AffineT(T t)
     {
-        std::fill(std::begin(E), std::end(E), v);
+        std::fill(std::begin(E), std::end(E), t);
     }
 
     AffineT(const std::array<VectorTN<T, 3>, 4>& columns_) :

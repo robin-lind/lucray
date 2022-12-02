@@ -1,3 +1,11 @@
 ---
-Checks:          'clang-diagnostic-*,bugprone-*,clang-analyzer-*,concurrency-*,misc-*,modernize-*,performance-*,portability-*'
+Checks:          'clang-diagnostic-*,bugprone-*,clang-analyzer-*,concurrency-*,misc-*,modernize-*,performance-*,portability-*,readability-*,-readability-identifier-length,-readability-braces-around-statements,-readability-magic-numbers'
+WarningsAsErrors: ''
+FormatStyle:     file
+CheckOptions:
+  - key:             readability-uppercase-literal-suffix.NewSuffixes
+    value:           'f'
+  - key:             readability-identifier-length.IgnoredParameterNames
+    value:           '^[a-z]_?$'
 ...
+
