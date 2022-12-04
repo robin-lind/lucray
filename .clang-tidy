@@ -1,5 +1,5 @@
 ---
-Checks:          'clang-diagnostic-*,bugprone-*,clang-analyzer-*,concurrency-*,misc-*,modernize-*,performance-*,portability-*,readability-*,-readability-identifier-length,-readability-braces-around-statements,-readability-magic-numbers'
+Checks:          'clang-diagnostic-*,bugprone-*,clang-analyzer-*,concurrency-*,misc-*,modernize-*,performance-*,portability-*,readability-*,-readability-identifier-length,-readability-braces-around-statements,-readability-magic-numbers,-modernize-use-trailing-return-type'
 WarningsAsErrors: ''
 FormatStyle:     file
 CheckOptions:
