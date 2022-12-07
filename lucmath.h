@@ -1,4 +1,4 @@
-// math.h
+// lucmath.h
 
 // MIT License
 //
@@ -28,251 +28,17 @@
 #include <cmath>
 #include <array>
 #include <functional>
-#include <numeric>
+#include <limits>
+#include "lucmath_gen.h"
 
 namespace luc
 {
 
 template<typename T, size_t N>
-union VectorTN
-{
-    VectorTN() = default;
-
-    VectorTN(T t)
-    {
-        std::fill(std::begin(E), std::end(E), t);
-    }
-
-    VectorTN(const std::array<T, N>& a) :
-      E(a) {}
-
-    std::array<T, N> E{};
-};
-
-template<typename T>
-union VectorTN<T, 2>
-{
-    VectorTN() = default;
-
-    VectorTN(T t) :
-      E{ t, t } {}
-
-    VectorTN(T x_, T y_) :
-      E{ x_, y_ } {}
-
-    VectorTN(const std::array<T, 2>& a) :
-      E(a) {}
-
-    struct
-    {
-        T x, y;
-    };
-
-    struct
-    {
-        T u, v;
-    };
-
-    struct
-    {
-        T w, h;
-    };
-
-    std::array<T, 2> E{};
-};
-
-template<typename T>
-union VectorTN<T, 3>
-{
-    VectorTN() = default;
-
-    VectorTN(T t) :
-      E{ t, t, t } {}
-
-    VectorTN(const VectorTN<T, 2>& v, T s) :
-      E{ v.x, v.y, s } {}
-
-    VectorTN(T s, const VectorTN<T, 2>& v) :
-      E{ s, v.x, v.y } {}
-
-    VectorTN(const VectorTN<T, 2>& v) :
-      VectorTN<T, 3>(v, static_cast<T>(0)) {}
-
-    VectorTN(T x_, T y_, T z_) :
-      E{ x_, y_, z_ } {}
-
-    VectorTN(const std::array<T, 3>& a) :
-      E(a) {}
-
-    struct
-    {
-        T x, y, z;
-    };
-
-    struct
-    {
-        T u, v, w;
-    };
-
-    struct
-    {
-        T r, g, b;
-    };
-
-    struct
-    {
-        VectorTN<T, 2> xy;
-        T              z0;
-    };
-
-    struct
-    {
-        T              x0;
-        VectorTN<T, 2> yz;
-    };
-
-    struct
-    {
-        VectorTN<T, 2> uv;
-        T              w0;
-    };
-
-    struct
-    {
-        T              u0;
-        VectorTN<T, 2> vw;
-    };
-
-    struct
-    {
-        VectorTN<T, 2> rg;
-        T              b0;
-    };
-
-    struct
-    {
-        T              r0;
-        VectorTN<T, 2> gb;
-    };
-
-    std::array<T, 3> E{};
-};
-
-template<typename T>
-union VectorTN<T, 4>
-{
-    VectorTN() = default;
-
-    VectorTN(T t) :
-      E{ t, t, t, t } {}
-
-    VectorTN(const VectorTN<T, 2>& u, const VectorTN<T, 2>& v) :
-      E{ u.x, u.y, v.x, v.y } {}
-
-    VectorTN(const VectorTN<T, 2>& v, T s, T t) :
-      E{ v.x, v.y, s, t } {}
-
-    VectorTN(const VectorTN<T, 2>& v) :
-      VectorTN(v, static_cast<T>(0), static_cast<T>(0)) {}
-
-    VectorTN(const VectorTN<T, 3>& v, T s) :
-      E{ v.x, v.y, v.z, s } {}
-
-    VectorTN(T s, const VectorTN<T, 3>& v) :
-      E{ s, v.x, v.y, v.z } {}
-
-    VectorTN(const VectorTN<T, 3>& v) :
-      VectorTN(v, static_cast<T>(0)) {}
-
-    VectorTN(T x_, T y_, T z_, T w_) :
-      E{ x_, y_, z_, w_ } {}
-
-    VectorTN(const std::array<T, 4>& a) :
-      E(a) {}
-
-    struct
-    {
-        T x, y, z, w;
-    };
-
-    struct
-    {
-        T r, g, b, a;
-    };
-
-    struct
-    {
-        VectorTN<T, 3> xyz;
-        T              w0;
-    };
-
-    struct
-    {
-        T              x0;
-        VectorTN<T, 3> yzw;
-    };
-
-    struct
-    {
-        VectorTN<T, 2> xy;
-        VectorTN<T, 2> zw;
-    };
-
-    struct
-    {
-        T              x1;
-        VectorTN<T, 2> yz;
-        T              w1;
-    };
-
-    struct
-    {
-        VectorTN<T, 3> rgb;
-        T              a0;
-    };
-
-    struct
-    {
-        T              r0;
-        VectorTN<T, 3> gba;
-    };
-
-    struct
-    {
-        VectorTN<T, 2> rg;
-        VectorTN<T, 2> ba;
-    };
-
-    struct
-    {
-        T              r1;
-        VectorTN<T, 2> gb;
-        T              a1;
-    };
-
-    std::array<T, 4> E{};
-};
-
-// template <typename T>
-// union Normal2T
-// {
-//     Normal2T() = default;
-//     Normal2T(T x_) : e{ x_, x_ } {}
-//     Normal2T(T x_, T y_) : e{ x_, y_ } {}
-//     Normal2T(const VectorTN<T,2>& v) : e{ v.x, v.y } {}
-//     Normal2T(const VectorTN<T,3>& v) : e{ v.x, v.y } {}
-//     struct
-//     {
-//         T x, y;
-//     };
-//     std::array<T, 2> e{};
-//     typedef T value_type;
-// };
-template<typename T, size_t N>
 union MatrixTN
 {
-    MatrixTN() = default;
-    ;
+    MatrixTN() :
+      MatrixTN(static_cast<T>(0)) {}
 
     MatrixTN(T t)
     {
@@ -292,8 +58,8 @@ union MatrixTN
 template<typename T>
 union AffineT
 {
-    AffineT() = default;
-    ;
+    AffineT() :
+      AffineT(static_cast<T>(0)) {}
 
     AffineT(T t)
     {
@@ -322,7 +88,7 @@ union AffineT
 };
 
 template<typename Op = std::plus<void>, typename T, size_t N>
-auto Collapse(const VectorTN<T, N>& a)
+auto Collapse(const VectorTN<T, N>&& a)
 {
     if constexpr (N == 2)
         return Op{}(a.x, a.y);
@@ -331,75 +97,12 @@ auto Collapse(const VectorTN<T, N>& a)
     else if constexpr (N == 4)
         return Op{}(Op{}(Op{}(a.x, a.y), a.z), a.w);
     else if constexpr (N > 4)
-        return std::accumulate(std::begin(a.E), std::end(a.E), static_cast<T>(0));
-}
-
-template<typename Op, typename T, size_t N>
-auto Reduce(const std::array<T, N>& a, const std::array<T, N>& b)
-{
-    auto result = [&]<std::size_t... I>(std::index_sequence<I...>)
     {
-        return std::array<T, N>{ Op{}(std::get<I>(a), std::get<I>(b))... };
+        T result = a.E[0];
+        for (size_t i = 1; i < N; i++)
+            result = Op{}(result, a.E[i]);
+        return result;
     }
-    (std::make_index_sequence<N>{});
-    return result;
-}
-
-template<typename Op, typename T, size_t N>
-auto Reduce(const VectorTN<T, N>& a, const VectorTN<T, N>& b)
-{
-    const auto result = VectorTN<T, N>(Reduce<Op, T, N>(a.E, b.E));
-    return result;
-}
-
-template<typename Op, typename T, typename U>
-auto Reduce(const T& a, const U& s) requires std::is_arithmetic_v<U>
-{
-    const auto result = Reduce<Op>(a, T{ s });
-    return result;
-}
-
-template<typename Op, typename T, typename U>
-auto Reduce(const U& s, const T& a) requires std::is_arithmetic_v<U>
-{
-    const auto result = Reduce<Op>(a, s);
-    return result;
-}
-
-template<typename Op = std::multiplies<void>, typename T, size_t C>
-auto Reduce(const MatrixTN<T, C>& mat, const VectorTN<T, C>& vec)
-{
-    const auto result = [&]<std::size_t... I>(std::index_sequence<I...>)->VectorTN<T, C>
-    {
-        return (Op{}(std::get<I>(mat.C), std::get<I>(vec.E)) + ...);
-    }
-    (std::make_index_sequence<C>{});
-    return result;
-}
-
-template<typename Op = std::multiplies<void>, typename T, size_t C>
-auto Reduce(const MatrixTN<T, C>& left, const MatrixTN<T, C>& right)
-{
-    const auto result = [&]<std::size_t... I>(std::index_sequence<I...>)->MatrixTN<T, C>
-    {
-        return { { Reduce<Op>(left, std::get<I>(right.C))... } };
-    }
-    (std::make_index_sequence<C>{});
-    return result;
-}
-
-template<typename Op = std::multiplies<void>, typename T>
-auto Reduce(const AffineT<T>& affine, const VectorTN<T, 3>& vec)
-{
-    const auto result = Reduce<Op>(affine.transform, vec);
-    return result + affine.translation;
-}
-
-template<typename T>
-auto Dot(const T& a, const T& b)
-{
-    const auto result = Collapse(a * b);
-    return result;
 }
 
 template<typename T>
@@ -413,106 +116,54 @@ auto Cross(const VectorTN<T, 3>& a, const VectorTN<T, 3>& b) -> VectorTN<T, 3>
     return result;
 }
 
-template<typename T>
-auto LengthSquared(const T& a)
+template<typename T, size_t N>
+auto Dot(const VectorTN<T, N>& a, const VectorTN<T, N>& b)
+{
+    const auto result = Collapse(a * b);
+    return result;
+}
+
+template<typename T, size_t N>
+auto LengthSquared(const VectorTN<T, N>& a)
 {
     const auto result = Dot(a, a);
     return result;
 }
 
-template<typename T>
-auto Length(const T& a)
+template<typename T, size_t N>
+auto Length(const VectorTN<T, N>& a)
 {
     const auto result = std::sqrt(LengthSquared(a));
     return result;
 }
 
-template<typename T>
-auto DistanceSquared(const VectorTN<T, 3>& a, const VectorTN<T, 3>& b) -> T
+template<typename T, size_t N>
+auto DistanceSquared(const VectorTN<T, N>& a, const VectorTN<T, N>& b)
 {
     const auto result = LengthSquared(a - b);
     return result;
 }
 
-template<typename T>
-auto Distance(const VectorTN<T, 3>& a, const VectorTN<T, 3>& b) -> T
+template<typename T, size_t N>
+auto Distance(const VectorTN<T, N>& a, const T& b)
 {
     const auto result = Length(a - b);
     return result;
 }
 
-template<typename T>
-auto Normalize(T&& a)
+template<typename T, size_t N>
+auto Normalize(const VectorTN<T, N>& t)
 {
-    const auto result = a / Length(a);
+    const auto result = t / Length(t);
     return result;
 }
 
 template<typename T, size_t N>
-auto NormalizedWithLength(const T& a)
+auto NormalizedWithLength(const VectorTN<T, N>& a)
 {
     const auto length = Length(a);
-    if constexpr (N == 2)
-        return VectorTN<T, 3>(a / length, length);
-    else if constexpr (N == 3)
-        return VectorTN<T, 4>(a / length, length);
+    return std::make_tuple(a / length, length);
 }
-
-template<typename T, typename U>
-auto operator+(T&& a, U&& b)
-{
-    return Reduce<std::plus<void>>(std::forward<T>(a), std::forward<U>(b));
-}
-
-template<typename T, typename U>
-auto operator-(T&& a, U&& b)
-{
-    return Reduce<std::minus<void>>(std::forward<T>(a), std::forward<U>(b));
-}
-
-template<typename T, typename U>
-auto operator*(T&& a, U&& b)
-{
-    return Reduce<std::multiplies<void>>(std::forward<T>(a), std::forward<U>(b));
-}
-
-template<typename T, typename U>
-auto operator/(T&& a, U&& b)
-{
-    return Reduce<std::divides<void>>(std::forward<T>(a), std::forward<U>(b));
-}
-
-template<typename T, typename U>
-void operator+=(T& a, U&& b)
-{
-    a = a + b;
-}
-
-template<typename T, typename U>
-void operator-=(T& a, U&& b)
-{
-    a = a - b;
-}
-
-template<typename T, typename U>
-void operator*=(T& a, U&& b)
-{
-    a = a * b;
-}
-
-template<typename T, typename U>
-void operator/=(T& a, U&& b)
-{
-    a = a / b;
-}
-
-using Vector2 = VectorTN<float, 2>;
-using Vector3 = VectorTN<float, 3>;
-using Vector4 = VectorTN<float, 4>;
-// typedef Normal2T<float> Normal2;
-using Matrix3 = MatrixTN<float, 3>;
-using Matrix4 = MatrixTN<float, 4>;
-using Affine  = AffineT<float>;
 
 template<typename T>
 auto MakeOrthoNormalBase(const VectorTN<T, 3>& normal)
@@ -526,6 +177,99 @@ auto MakeOrthoNormalBase(const VectorTN<T, 3>& normal)
     const auto bi_tangent = VectorTN<T, 3>(b, sign_z + normal.y * normal.y * a, -normal.y);
     return MatrixTN<T, 3>({ tangent, bi_tangent, normal });
 }
+
+template<typename T, size_t N>
+auto Min(const VectorTN<T, N>& t, const VectorTN<T, N>& u)
+{
+    auto result = [&]<std::size_t... I>(std::index_sequence<I...>)
+    {
+        return VectorTN<T, N>(std::min(std::get<I>(t.E), std::get<I>(u.E))...);
+    }
+    (std::make_index_sequence<N>{});
+    return result;
+}
+
+template<typename T, size_t N>
+auto Max(const VectorTN<T, N>& t, const VectorTN<T, N>& u)
+{
+    auto result = [&]<std::size_t... I>(std::index_sequence<I...>)
+    {
+        return VectorTN<T, N>(std::max(std::get<I>(t.E), std::get<I>(u.E))...);
+    }
+    (std::make_index_sequence<N>{});
+    return result;
+}
+
+template<size_t N>
+bool AllTrue(VectorTN<bool, N> t)
+{
+    bool result = std::apply([](auto&&...v)
+                             { return (v && ...); },
+                             t.E);
+    return result;
+}
+
+template<size_t N>
+bool AnyTrue(VectorTN<bool, N> t)
+{
+    bool result = std::apply([](auto&&...v)
+                             { return (v || ...); },
+                             t.E);
+    return result;
+}
+
+template<typename T, size_t N>
+struct Bounds
+{
+    Bounds() :
+      min(std::numeric_limits<T>::max()), max(-std::numeric_limits<T>::max()) {}
+
+    template<typename... Ts>
+    Bounds(const VectorTN<T, N>& t, const Ts&...args) :
+      min(t), max(t)
+    {
+        constexpr auto                         Size = sizeof...(args);
+        const std::array<VectorTN<T, N>, Size> items{ VectorTN<T, N>(args)... };
+        for (const auto& v : items)
+            Union(v);
+        // {
+        //     for (size_t i = 0; i < N; i++)
+        //     {
+        //         min.E[i] = std::min(min.E[i], t.E[i]);
+        //         max.E[i] = std::max(max.E[i], t.E[i]);
+        //     }
+        // }
+    }
+
+    // auto Union(const Bounds<T, N>& t)
+    // {
+    //     min = luc::Min(min, t.min);
+    //     max = luc::Max(max, t.max);
+    //     return *this;
+    // }
+
+    // auto Union(const VectorTN<T, N>& t)
+    // {
+    //     min = luc::Min(min, t);
+    //     max = luc::Max(max, t);
+    //     return *this;
+    // }
+
+    void Union(VectorTN<T, N> t)
+    {
+        for (size_t i = 0; i < N; i++)
+        {
+            min.E[i] = std::min(min.E[i], t.E[i]);
+            max.E[i] = std::max(max.E[i], t.E[i]);
+        }
+    }
+
+    VectorTN<T, N> min, max;
+};
+
+using Bounds2 = Bounds<float, 2>;
+using Bounds3 = Bounds<float, 3>;
+using Bounds4 = Bounds<float, 4>;
 
 }; // namespace luc
 
