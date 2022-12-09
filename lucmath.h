@@ -88,7 +88,7 @@ union AffineT
 };
 
 template<typename Op = std::plus<void>, typename T, size_t N>
-auto Collapse(const VectorTN<T, N>&& a)
+auto Collapse(const VectorTN<T, N>& a)
 {
     if constexpr (N == 2)
         return Op{}(a.x, a.y);
@@ -232,36 +232,24 @@ struct Bounds
         const std::array<VectorTN<T, N>, Size> items{ VectorTN<T, N>(args)... };
         for (const auto& v : items)
             Union(v);
-        // {
-        //     for (size_t i = 0; i < N; i++)
-        //     {
-        //         min.E[i] = std::min(min.E[i], t.E[i]);
-        //         max.E[i] = std::max(max.E[i], t.E[i]);
-        //     }
-        // }
     }
 
-    // auto Union(const Bounds<T, N>& t)
-    // {
-    //     min = luc::Min(min, t.min);
-    //     max = luc::Max(max, t.max);
-    //     return *this;
-    // }
-
-    // auto Union(const VectorTN<T, N>& t)
-    // {
-    //     min = luc::Min(min, t);
-    //     max = luc::Max(max, t);
-    //     return *this;
-    // }
-
-    void Union(VectorTN<T, N> t)
+    auto Union(const Bounds<T, N>& t)
     {
-        for (size_t i = 0; i < N; i++)
-        {
-            min.E[i] = std::min(min.E[i], t.E[i]);
-            max.E[i] = std::max(max.E[i], t.E[i]);
-        }
+        min = luc::Min(min, t.min);
+        max = luc::Max(max, t.max);
+    }
+
+    auto Union(const VectorTN<T, N>& t)
+    {
+        min = luc::Min(min, t);
+        max = luc::Max(max, t);
+    }
+
+    VectorTN<T, N> Volume() const
+    {
+        auto result = max - min;
+        return result;
     }
 
     VectorTN<T, N> min, max;

@@ -1,0 +1,12 @@
+[submodule "argh"]
+	path = argh
+	url = https://github.com/adishavit/argh.git
+[submodule "tinyobjloader"]
+	path = tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git
+[submodule "tinyexr"]
+	path = tinyexr
+	url = https://github.com/syoyo/tinyexr.git
+[submodule "aixlog"]
+	path = aixlog
+	url = https://github.com/badaix/aixlog.git

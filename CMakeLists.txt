@@ -7,7 +7,26 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(CTest)
 enable_testing()
 
-add_executable(lucray main.cpp)
+set (EXTERN_SRC_LIST
+tinyexr/deps/miniz/miniz.c
+)
+
+set (SRC_LIST
+main.cpp
+implementation.cpp
+camera.cpp
+dacrt.cpp
+${EXTERN_SRC_LIST}
+)
+
+set (INCLUDE_LIST
+tinyexr/deps/miniz
+aixlog/include
+)
+
+add_executable(lucray ${SRC_LIST})
+target_include_directories(lucray PUBLIC ${INCLUDE_LIST})
+target_link_libraries(lucray)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
