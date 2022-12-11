@@ -1,5 +1,5 @@
 ---
-Checks:          'clang-diagnostic-*,bugprone-*,clang-analyzer-*,concurrency-*,misc-*,modernize-*,performance-*,portability-*,readability-*,-readability-identifier-length,-readability-braces-around-statements,-readability-magic-numbers,-modernize-use-trailing-return-type,-readability-isolate-declaration,-misc-non-private-member-variables-in-classes,-bugprone-easily-swappable-parameters'
+Checks:          '-clang-diagnostic-*,bugprone-*,clang-analyzer-*,concurrency-*,misc-*,modernize-*,performance-*,portability-*,readability-*,-readability-identifier-length,-readability-braces-around-statements,-readability-magic-numbers,-modernize-use-trailing-return-type,-readability-isolate-declaration,-misc-non-private-member-variables-in-classes,-bugprone-easily-swappable-parameters'
 WarningsAsErrors: ''
 FormatStyle:     file
 CheckOptions:

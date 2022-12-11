@@ -103,7 +103,6 @@ int main(int argc, char *argv[])
 
     std::vector<luc::Vector3> vertices;
     vertices.reserve(attrib.vertices.size() / 3);
-    size_t emplaced = 0;
     for (size_t i = 0; i < attrib.vertices.size(); i += 3)
     {
         const auto& a = attrib.vertices[i + 0];
@@ -111,7 +110,16 @@ int main(int argc, char *argv[])
         const auto& c = attrib.vertices[i + 2];
         vertices.emplace_back(a, b, c);
     }
-    std::vector<TriangleI>    triangles;
+    std::vector<luc::Vector3> normals;
+    normals.reserve(attrib.normals.size() / 3);
+    for (size_t i = 0; i < attrib.normals.size(); i += 3)
+    {
+        const auto& a = attrib.normals[i + 0];
+        const auto& b = attrib.normals[i + 1];
+        const auto& c = attrib.normals[i + 2];
+        normals.emplace_back(a, b, c);
+    }
+    std::vector<TriangleI> triangles;
     for (const auto& shape : shapes)
     {
         for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++)
@@ -123,12 +131,14 @@ int main(int argc, char *argv[])
         }
     }
 
-    const float        fov_x = 4.5f;
-    const luc::Vector3 eye{ 100.0f, 66.0f, 100.0f };
-    const luc::Vector3 target{ 0.f, 0.f, 0.f };
-    RayCamera              camera(width, height, eye, target, { 0.f, 1.f, 0.f }, fov_x);
+    const float fov_x = 70.f;
+    // const luc::Vector3     eye{ 100.0f, 66.0f, 100.0f };
+    // const luc::Vector3     target{ 0.f, 0.f, 0.f };
+    const luc::Vector3     eye{ 0.f, 1.31f, 4.7f };
+    const luc::Vector3     target{ 0.f, 1.f, 2.94f };
+    const RayCamera        camera(width, height, eye, target, { 0.f, 1.f, 0.f }, fov_x);
     Sampler                sampler(0);
-    size_t                 ray_count = static_cast<size_t>(width) * height;
+    const size_t           ray_count = static_cast<size_t>(width) * height;
     std::vector<Ray>       rays;
     std::vector<HitRecord> records;
 
@@ -160,7 +170,7 @@ int main(int argc, char *argv[])
         {
             luc::Vector3 color;
             if (record.hit)
-                color = luc::Vector3(190.f, 33.f, 55.f) * std::max(0.f, luc::Dot(record.n, luc::Normalize(record.p - luc::Vector3(0.f, 100.f, 0.f)))); //((record.n * .5f) + .5f)
+                color = luc::Vector3(1.f, .17f, .3f) * std::max(0.f, luc::Dot(record.n, luc::Normalize(record.p - luc::Vector3(0.f, 100.f, 0.f)))); //((record.n * .5f) + .5f)
             else
                 color = { 0.f };
             size_t idx   = record.idx.x + record.idx.y * width;

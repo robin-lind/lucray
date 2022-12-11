@@ -1,0 +1,11 @@
+Diagnostics:
+  Suppress: '*'
+
+InlayHints:
+  Enabled: No
+
+Completion:
+  AllScopes: Yes
+
+Hover:
+  ShowAKA: Yes

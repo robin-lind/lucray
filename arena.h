@@ -30,7 +30,22 @@
 #include <cstdlib>
 #include <vector>
 
-#define DEFAULT_ARENA_SIZE 5000000
+constexpr size_t KByte(size_t k)
+{
+    return k * 1024ull;
+}
+
+constexpr size_t MByte(size_t m)
+{
+    return KByte(m) * 1024ull;
+}
+
+constexpr size_t GByte(size_t g)
+{
+    return MByte(g) * 1024ull;
+}
+
+constexpr size_t DEFAULT_ARENA_SIZE = MByte(5);
 
 struct arena_allocator
 {
@@ -60,44 +75,60 @@ struct arena_allocator
         return space_left;
     }
 
+    void clear()
+    {
+        space_left = size;
+        current    = start;
+    }
+
     ~arena_allocator()
     {
         free(start);
     }
 
-    void *alloc(size_t s)
+    void *alloc(size_t size)
     {
-        space_left = space_left - s;
+        space_left -= size;
         assert(space_left > 0);
         void *to_alloc = current;
-        current += s;
+        current += size;
         return to_alloc;
     }
 
     template<typename T>
     T *allocate()
     {
-        size_t s   = sizeof(T);
-        space_left = space_left - s;
+        constexpr size_t size   = sizeof(T);
+        size_t           offset = current_offset_required_for_alignment_of<T>();
+        space_left -= size + offset;
         assert(space_left > 0);
+        current += offset;
         void *to_alloc = current;
-        current += s;
+        current += size;
         return static_cast<T *>(to_alloc);
+    }
+
+    template<typename T>
+    size_t current_offset_required_for_alignment_of()
+    {
+        constexpr size_t alignment = alignof(T);
+        size_t           offset    = (alignment - (reinterpret_cast<size_t>(current) % alignment)) & (alignment - 1);
+        return offset;
     }
 };
 
-template<typename T>
+template<typename T, typename Counter = size_t>
 struct arena_list
 {
-    T     *ptr  = nullptr;
-    size_t size = 0;
+    T      *ptr  = nullptr;
+    Counter size = 0;
 
     arena_list() = default;
 
-    arena_list(arena_allocator& arena, const size_t& count)
+    arena_list(arena_allocator& arena, const size_t& count) :
+      size(count)
     {
-        ptr  = reinterpret_cast<T *>(arena.alloc(count * sizeof(T)));
-        size = count;
+        ptr = reinterpret_cast<T *>(arena.alloc(count * sizeof(T)));
     }
 
     T& operator[](std::size_t idx)
@@ -111,12 +142,12 @@ struct arena_list
     }
 };
 
-template<typename T>
+template<typename T, typename Counter = size_t>
 struct expanding_list
 {
     arena_allocator& arena;
     T               *ptr   = nullptr;
-    size_t           count = 0;
+    Counter          count = 0;
 
     expanding_list(arena_allocator& _arena) :
       arena(_arena), ptr(reinterpret_cast<T *>(_arena.current)) {}
