@@ -35,16 +35,16 @@ template<typename T, size_t N>
 union VectorTN
 {
     VectorTN() : VectorTN(static_cast<T>(0)) {}
-    VectorTN(T t) { std::fill(std::begin(E), std::end(E), t); }
+    VectorTN(const T& t) { std::fill(std::begin(E), std::end(E), t); }
     VectorTN(const std::array<T, N>& a) : E(a) {}
     std::array<T, N> E{};
 };
 template<typename T>
 union VectorTN<T, 2>
 {
-    VectorTN() : VectorTN(static_cast<T>(0)) {}
-	VectorTN(const T& _x) : E{ _x, _x } {}
-    VectorTN(const T& _x, const T& _y) : E{ _x, _y } {}
+	VectorTN() : VectorTN(static_cast<T>(0)) {}
+	VectorTN(const T& t) : E{ t, t } {}
+	VectorTN(const T& _x, const T& _y) : E{ _x, _y } {}
 	struct
 	{
 		T x;
@@ -71,9 +71,9 @@ union VectorTN<T, 2>
 template<typename T>
 union VectorTN<T, 3>
 {
-    VectorTN() : VectorTN(static_cast<T>(0)) {}
-	VectorTN(const T& _x) : E{ _x, _x, _x } {}
-    VectorTN(const T& _x, const T& _y, const T& _z) : E{ _x, _y, _z } {}
+	VectorTN() : VectorTN(static_cast<T>(0)) {}
+	VectorTN(const T& t) : E{ t, t, t } {}
+	VectorTN(const T& _x, const T& _y, const T& _z) : E{ _x, _y, _z } {}
 	VectorTN(const VectorTN<T,2>& _xy, const T& _z) : E{ _xy.x, _xy.y, _z } {}
 	VectorTN(const T& _x, const VectorTN<T,2>& _yz) : E{ _x, _yz.x, _yz.y } {}
 	struct
@@ -130,9 +130,9 @@ union VectorTN<T, 3>
 template<typename T>
 union VectorTN<T, 4>
 {
-    VectorTN() : VectorTN(static_cast<T>(0)) {}
-	VectorTN(const T& _x) : E{ _x, _x, _x, _x } {}
-    VectorTN(const T& _x, const T& _y, const T& _z, const T& _w) : E{ _x, _y, _z, _w } {}
+	VectorTN() : VectorTN(static_cast<T>(0)) {}
+	VectorTN(const T& t) : E{ t, t, t, t } {}
+	VectorTN(const T& _x, const T& _y, const T& _z, const T& _w) : E{ _x, _y, _z, _w } {}
 	VectorTN(const VectorTN<T,2>& _xy, const T& _z, const T& _w) : E{ _xy.x, _xy.y, _z, _w } {}
 	VectorTN(const VectorTN<T,3>& _xyz, const T& _w) : E{ _xyz.x, _xyz.y, _xyz.z, _w } {}
 	VectorTN(const VectorTN<T,2>& _xy, const VectorTN<T,2>& _zw) : E{ _xy.x, _xy.y, _zw.x, _zw.y } {}
@@ -403,6 +403,46 @@ auto operator!=(const T& t, const VectorTN<T, 2>& u)
 	return result;
 }
 template<typename T>
+auto operator+=(const VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator+=(const VectorTN<T, 2>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator-=(const VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator-=(const VectorTN<T, 2>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator*=(const VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator*=(const VectorTN<T, 2>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator/=(const VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator/=(const VectorTN<T, 2>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
 auto operator+(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
 {
 	VectorTN<T, 3> result(t.x + u.x, t.y + u.y, t.z + u.z);
@@ -583,6 +623,46 @@ auto operator!=(const T& t, const VectorTN<T, 3>& u)
 	return result;
 }
 template<typename T>
+auto operator+=(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator+=(const VectorTN<T, 3>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator-=(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator-=(const VectorTN<T, 3>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator*=(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator*=(const VectorTN<T, 3>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator/=(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator/=(const VectorTN<T, 3>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
 auto operator+(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
 {
 	VectorTN<T, 4> result(t.x + u.x, t.y + u.y, t.z + u.z, t.w + u.w);
@@ -761,6 +841,46 @@ auto operator!=(const T& t, const VectorTN<T, 4>& u)
 {
 	VectorTN<bool, 4> result(t != u.x, t != u.y, t != u.z, t != u.w);
 	return result;
+}
+template<typename T>
+auto operator+=(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator+=(const VectorTN<T, 4>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator-=(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator-=(const VectorTN<T, 4>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator*=(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator*=(const VectorTN<T, 4>& t, const T& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator/=(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
+{
+	t = t + u;
+}
+template<typename T>
+auto operator/=(const VectorTN<T, 4>& t, const T& u)
+{
+	t = t + u;
 }
 
 using Vector2 = VectorTN<float,2>;

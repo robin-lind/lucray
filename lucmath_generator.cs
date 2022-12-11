@@ -31,12 +31,6 @@ string header =
 
 #include <cmath>
 #include <array>
-#include <functional>
-#include <limits>
-#include <numeric>
-#include <tuple>
-#include <type_traits>
-#include <utility>
 
 namespace luc
 {
@@ -51,7 +45,7 @@ string base_vector =
 union VectorTN
 {
     VectorTN() : VectorTN(static_cast<T>(0)) {}
-    VectorTN(T t) { std::fill(std::begin(E), std::end(E), t); }
+    VectorTN(const T& t) { std::fill(std::begin(E), std::end(E), t); }
     VectorTN(const std::array<T, N>& a) : E(a) {}
     std::array<T, N> E{};
 };";
@@ -77,23 +71,29 @@ usings.Add("Double,double");
 usings.Add("Int,int32_t");
 usings.Add("Long,int64_t");
 usings.Add("Bool,bool");
-List<string> operators = new();
-operators.Add("+,T");
-operators.Add("-,T");
-operators.Add("*,T");
-operators.Add("/,T");
-operators.Add("<,bool");
-operators.Add("<=,bool");
-operators.Add(">,bool");
-operators.Add(">=,bool");
-operators.Add("==,bool");
-operators.Add("!=,bool");
+List<string> binary_ops = new();
+binary_ops.Add("+,T");
+binary_ops.Add("-,T");
+binary_ops.Add("*,T");
+binary_ops.Add("/,T");
+binary_ops.Add("<,bool");
+binary_ops.Add("<=,bool");
+binary_ops.Add(">,bool");
+binary_ops.Add(">=,bool");
+binary_ops.Add("==,bool");
+binary_ops.Add("!=,bool");
+List<string> unary_math_ops = new();
+unary_math_ops.Add("+=,T");
+unary_math_ops.Add("-=,T");
+unary_math_ops.Add("*=,T");
+unary_math_ops.Add("/=,T");
 
 List<string> first = new();
 List<string> second = new();
 List<string> third = new();
 for (int i = 1; i < 4; i++)
 {
+    int N = i + 1;
     List<string> formats = new();
     foreach (var s in swizzle)
     {
@@ -135,6 +135,13 @@ for (int i = 1; i < 4; i++)
     }
     List<string> constructors = c_hash_sum.ToList();
     List<string> constructor_methods = new();
+    {
+        List<string> init = new();
+        for (int j = 0; j < N; j++)
+            init.Add("t");
+        string single = $"\tVectorTN(const T& t) : E{{ {string.Join(", ", init)} }} {{}}";
+        constructor_methods.Add(single);
+    }
     foreach (var c in constructors)
     {
         int offset = 0;
@@ -161,7 +168,6 @@ for (int i = 1; i < 4; i++)
         string s = $"\tVectorTN({string.Join(", ", param)}) : E{{ {string.Join(", ", init)} }} {{}}";
         constructor_methods.Add(s);
     }
-    int N = i + 1;
     List<string> unions = new();
     foreach (var swizz in swizzle)
     {
@@ -207,7 +213,7 @@ $"template<typename T>\nunion VectorTN<T, {N}>\n{"{"}\n\tVectorTN() : VectorTN(s
     vector_builder.AppendLine(string.Join("\n", constructor_methods));
     vector_builder.Append(string.Join("\n", unions));
     vector_builder.Append($"\n\tstd::array<T, {N}> E{{}};\n}};");
-    foreach (var o in operators)
+    foreach (var o in binary_ops)
     {
         var split = o.Split(',');
         var op = split[0];
@@ -240,6 +246,17 @@ $"template<typename T>\nunion VectorTN<T, {N}>\n{"{"}\n\tVectorTN() : VectorTN(s
         op_builder.Append($"\n{signature_vs}{gen_op_func(true, false)}");
         op_builder.Append($"\n{signature_sv}{gen_op_func(false, true)}");
     }
+    foreach (var o in unary_math_ops)
+    {
+        var split = o.Split(',');
+        var op = split[0];
+        var rt = split[1];
+        var signature_vv = $"template<typename T>\nauto operator{op}(const VectorTN<T, {N}>& t, const VectorTN<T, {N}>& u)";
+        var signature_vs = $"template<typename T>\nauto operator{op}(const VectorTN<T, {N}>& t, const T& u)";
+
+        op_builder.Append($"\n{signature_vv}\n{"{"}\n\tt = t + u;\n}}");
+        op_builder.Append($"\n{signature_vs}\n{"{"}\n\tt = t + u;\n}}");
+    }
     foreach (var u in usings)
     {
         var split = u.Split(',');
@@ -257,4 +274,4 @@ final_builder.AppendLine(string.Join("\n\n", first));
 final_builder.AppendLine(string.Join("", second));
 final_builder.AppendLine(string.Join("\n", third));
 final_builder.AppendLine(footer);
-File.WriteAllText("lucmath_gen.h", final_builder.ToString());
+File.WriteAllText("\\\\wsl$\\Ubuntu-22.04\\home\\lorto6\\lucray\\lucmath_gen.h", final_builder.ToString());
