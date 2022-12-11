@@ -443,6 +443,12 @@ auto operator/=(const VectorTN<T, 2>& t, const T& u)
 	t = t + u;
 }
 template<typename T>
+auto operator-(const VectorTN<T, 2>& t)
+{
+	VectorTN<T, 2> result(-t.x, -t.y);
+	return result;
+}
+template<typename T>
 auto operator+(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
 {
 	VectorTN<T, 3> result(t.x + u.x, t.y + u.y, t.z + u.z);
@@ -663,6 +669,12 @@ auto operator/=(const VectorTN<T, 3>& t, const T& u)
 	t = t + u;
 }
 template<typename T>
+auto operator-(const VectorTN<T, 3>& t)
+{
+	VectorTN<T, 3> result(-t.x, -t.y, -t.z);
+	return result;
+}
+template<typename T>
 auto operator+(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
 {
 	VectorTN<T, 4> result(t.x + u.x, t.y + u.y, t.z + u.z, t.w + u.w);
@@ -881,6 +893,12 @@ template<typename T>
 auto operator/=(const VectorTN<T, 4>& t, const T& u)
 {
 	t = t + u;
+}
+template<typename T>
+auto operator-(const VectorTN<T, 4>& t)
+{
+	VectorTN<T, 4> result(-t.x, -t.y, -t.z, -t.w);
+	return result;
 }
 
 using Vector2 = VectorTN<float,2>;

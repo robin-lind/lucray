@@ -83,10 +83,10 @@ binary_ops.Add(">=,bool");
 binary_ops.Add("==,bool");
 binary_ops.Add("!=,bool");
 List<string> unary_math_ops = new();
-unary_math_ops.Add("+=,T");
-unary_math_ops.Add("-=,T");
-unary_math_ops.Add("*=,T");
-unary_math_ops.Add("/=,T");
+unary_math_ops.Add("+=");
+unary_math_ops.Add("-=");
+unary_math_ops.Add("*=");
+unary_math_ops.Add("/=");
 
 List<string> first = new();
 List<string> second = new();
@@ -224,38 +224,40 @@ $"template<typename T>\nunion VectorTN<T, {N}>\n{"{"}\n\tVectorTN() : VectorTN(s
 
         string gen_op_func(bool t, bool u)
         {
-            string do_ops(bool t, bool u)
+            List<string> ops = new();
+            for (int j = 0; j < N; j++)
             {
-                string do_op(string t, string u)
-                {
-                    return $"t{t} {op} u{u}";
-                }
-                List<string> ops = new();
-                for (int j = 0; j < N; j++)
-                {
-                    var variable = $".{names[j]}";
-                    var tV = t ? variable : "";
-                    var uV = u ? variable : "";
-                    ops.Add(do_op(tV, uV));
-                }
-                return string.Join(", ", ops);
+                var variable = $".{names[j]}";
+                var tV = t ? variable : "";
+                var uV = u ? variable : "";
+                ops.Add($"t{tV} {op} u{uV}");
             }
-            return $"\n{"{"}\n\tVectorTN<{rt}, {N}> result({do_ops(t, u)});\n\treturn result;\n}}";
+            return $"\n{"{"}\n\tVectorTN<{rt}, {N}> result({string.Join(", ", ops)});\n\treturn result;\n}}";
         }
         op_builder.Append($"\n{signature_vv}{gen_op_func(true, true)}");
         op_builder.Append($"\n{signature_vs}{gen_op_func(true, false)}");
         op_builder.Append($"\n{signature_sv}{gen_op_func(false, true)}");
     }
-    foreach (var o in unary_math_ops)
+    foreach (var op in unary_math_ops)
     {
-        var split = o.Split(',');
-        var op = split[0];
-        var rt = split[1];
         var signature_vv = $"template<typename T>\nauto operator{op}(const VectorTN<T, {N}>& t, const VectorTN<T, {N}>& u)";
         var signature_vs = $"template<typename T>\nauto operator{op}(const VectorTN<T, {N}>& t, const T& u)";
 
         op_builder.Append($"\n{signature_vv}\n{"{"}\n\tt = t + u;\n}}");
         op_builder.Append($"\n{signature_vs}\n{"{"}\n\tt = t + u;\n}}");
+    }
+    {
+        string gen_op_func()
+        {
+            List<string> ops = new();
+            for (int j = 0; j < N; j++)
+            {
+                ops.Add($"-t.{names[j]}");
+            }
+            return $"\n{"{"}\n\tVectorTN<T, {N}> result({string.Join(", ", ops)});\n\treturn result;\n}}";
+        }
+        var signature_unary_negate = $"template<typename T>\nauto operator-(const VectorTN<T, {N}>& t)";
+        op_builder.Append($"\n{signature_unary_negate}{gen_op_func()}");
     }
     foreach (var u in usings)
     {
