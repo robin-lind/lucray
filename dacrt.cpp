@@ -42,12 +42,12 @@
 
 void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& triangles, const std::vector<luc::Vector3>& vertices, std::vector<HitRecord>& records)
 {
-    size_t          ray_size = sizeof(HitRecord) + sizeof(Ray) + sizeof(int);
-    size_t          tri_size = sizeof(TriangleI) + sizeof(luc::Vector3) * 3 + sizeof(int);
+    size_t ray_size = sizeof(HitRecord) + sizeof(Ray) + sizeof(int);
+    size_t tri_size = sizeof(TriangleI) + sizeof(luc::Vector3) * 3 + sizeof(int);
     arena_allocator arena(20ull * 1024ull * 1024ull * 1024ull);
     // std::vector<std::tuple<luc::Bounds3, std::vector<int>, std::vector<int>>> scuffed;
 
-    arena_list<float>        ray_dist(arena, rays.size());
+    arena_list<float> ray_dist(arena, rays.size());
     arena_list<luc::Vector3> ray_p(arena, rays.size());
     arena_list<luc::Vector3> ray_n(arena, rays.size());
     for (size_t i = 0; i < rays.size(); i++)
@@ -57,10 +57,10 @@ void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& trian
         auto p0 = v0;
         auto e1 = v0 - v1;
         auto e2 = v2 - v0;
-        auto n  = luc::Cross(e1, e2);
+        auto n = luc::Cross(e1, e2);
 
-        auto c       = p0 - ray.O;
-        auto r       = luc::Cross(ray.D, c);
+        auto c = p0 - ray.O;
+        auto r = luc::Cross(ray.D, c);
         auto inv_det = 1.f / luc::Dot(n, ray.D);
 
         auto u = luc::Dot(r, e2) * inv_det;
@@ -89,38 +89,38 @@ void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& trian
             return true;
         };
         expanding_list<int> new_prim_list(arena);
-        luc::Bounds3        new_bounds;
+        luc::Bounds3 new_bounds;
         for (int i = 0; i < prim_list.count; ++i)
         {
-            const int           prim_id = prim_list[i];
-            const TriangleI   & tri     = triangles[prim_id];
-            const luc::Vector3& a       = vertices[tri.A];
-            const luc::Vector3& b       = vertices[tri.B];
-            const luc::Vector3& c       = vertices[tri.C];
-            luc::Bounds3        tri_bound(a, b, c);
+            const int prim_id = prim_list[i];
+            const TriangleI& tri = triangles[prim_id];
+            const luc::Vector3& a = vertices[tri.A];
+            const luc::Vector3& b = vertices[tri.B];
+            const luc::Vector3& c = vertices[tri.C];
+            luc::Bounds3 tri_bound(a, b, c);
             if (intersect_bounds(bounds, tri_bound))
             {
                 new_bounds.Union(tri_bound);
                 new_prim_list.emplace_back(prim_id);
             }
         }
-        bounds.max                = luc::Min(new_bounds.max, bounds.max);
-        bounds.min                = luc::Max(new_bounds.min, bounds.min);
+        bounds.max = luc::Min(new_bounds.max, bounds.max);
+        bounds.min = luc::Max(new_bounds.min, bounds.min);
         auto intersect_ray_bounds = [&](const luc::Bounds3& b, const Ray& ray)
         {
             const luc::Vector3 t1 = (b.min - ray.O) / ray.D;
             const luc::Vector3 t2 = (b.max - ray.O) / ray.D;
             const luc::Vector3 tl = luc::Min(t1, t2);
             const luc::Vector3 th = luc::Max(t1, t2);
-            const float        l  = std::max(tl.x, std::max(tl.y, tl.z));
-            const float        h  = std::min(th.x, std::min(th.y, th.z));
+            const float l = std::max(tl.x, std::max(tl.y, tl.z));
+            const float h = std::min(th.x, std::min(th.y, th.z));
             return l < h;
         };
         expanding_list<int> new_ray_list(arena);
         for (int i = 0; i < ray_list.count; ++i)
         {
-            const int  ray_id = ray_list[i];
-            const Ray& ray    = rays[ray_id];
+            const int ray_id = ray_list[i];
+            const Ray& ray = rays[ray_id];
             if (intersect_ray_bounds(bounds, ray))
                 new_ray_list.emplace_back(ray_id);
         }
@@ -129,19 +129,19 @@ void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& trian
 
     auto split = [](const luc::Bounds3& bounds)
     {
-        luc::Vector3 d     = bounds.max - bounds.min;
-        int          axis  = (d.x > d.y && d.x > d.z) ? 0 : ((d.y > d.z) ? 1 : 2);
-        float        pos   = (bounds.min.E[axis] + bounds.max.E[axis]) * 0.5f;
-        auto         bnear = bounds;
-        auto         bfar  = bounds;
-        bnear.max.E[axis]  = pos;
-        bfar.min.E[axis]   = pos;
+        luc::Vector3 d = bounds.max - bounds.min;
+        int axis = (d.x > d.y && d.x > d.z) ? 0 : ((d.y > d.z) ? 1 : 2);
+        float pos = (bounds.min.E[axis] + bounds.max.E[axis]) * 0.5f;
+        auto bnear = bounds;
+        auto bfar = bounds;
+        bnear.max.E[axis] = pos;
+        bfar.min.E[axis] = pos;
         return std::make_pair(bnear, bfar);
     };
 
     const int TriLimit = 8;
     const int RayLimit = 64;
-    size_t    branches = 0;
+    size_t branches = 0;
 
     std::function<void(const luc::Bounds3&, const expanding_list<int>&, const expanding_list<int>&)>
       trace = [&](const luc::Bounds3& bounds, const expanding_list<int>& tri_list, const expanding_list<int>& ray_list)
@@ -162,22 +162,22 @@ void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& trian
             // }
             for (int t = 0; t < tri_list.count; ++t)
             {
-                const int           prim_id = tri_list[t];
-                const TriangleI   & tri     = triangles[prim_id];
-                const luc::Vector3& v0      = vertices[tri.A];
-                const luc::Vector3& v1      = vertices[tri.B];
-                const luc::Vector3& v2      = vertices[tri.C];
+                const int prim_id = tri_list[t];
+                const TriangleI& tri = triangles[prim_id];
+                const luc::Vector3& v0 = vertices[tri.A];
+                const luc::Vector3& v1 = vertices[tri.B];
+                const luc::Vector3& v2 = vertices[tri.C];
                 for (int r = 0; r < ray_list.count; ++r)
                 {
-                    const int  ray_id = ray_list[r];
-                    const Ray& ray    = rays[ray_id];
-                    auto       hit    = intersect_ray_triangle(ray, v0, v1, v2);
+                    const int ray_id = ray_list[r];
+                    const Ray& ray = rays[ray_id];
+                    auto hit = intersect_ray_triangle(ray, v0, v1, v2);
                     if (!hit) continue;
                     auto& intersection = *hit;
                     if (intersection.distance >= ray_dist[ray_id]) continue;
                     ray_dist[ray_id] = intersection.distance;
-                    ray_p[ray_id]    = intersection.position;
-                    ray_n[ray_id]    = luc::Normalize(intersection.normal_geometric);
+                    ray_p[ray_id] = intersection.position;
+                    ray_n[ray_id] = luc::Normalize(intersection.normal_geometric);
                 }
             }
             return;
@@ -186,7 +186,7 @@ void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& trian
         auto [near_bounds, far_bounds] = split(bounds);
 
         auto [new_near_bounds, near_tri_list, near_ray_list] = partition(near_bounds, tri_list, ray_list);
-        auto [new_far_bounds, far_tri_list, far_ray_list]    = partition(far_bounds, tri_list, ray_list);
+        auto [new_far_bounds, far_tri_list, far_ray_list] = partition(far_bounds, tri_list, ray_list);
 
         trace(new_near_bounds, near_tri_list, near_ray_list);
         trace(new_far_bounds, far_tri_list, far_ray_list);
@@ -212,7 +212,7 @@ void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& trian
     for (int i = 0; i < rays.size(); i++)
     {
         auto& record = records[i];
-        record.hit   = ray_dist[i] < std::numeric_limits<float>::max();
+        record.hit = ray_dist[i] < std::numeric_limits<float>::max();
         if (record.hit)
         {
             record.p = ray_p[i];

@@ -403,42 +403,42 @@ auto operator!=(const T& t, const VectorTN<T, 2>& u)
 	return result;
 }
 template<typename T>
-auto operator+=(const VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
+auto operator+=(VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator+=(const VectorTN<T, 2>& t, const T& u)
+auto operator+=(VectorTN<T, 2>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator-=(const VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
+auto operator-=(VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator-=(const VectorTN<T, 2>& t, const T& u)
+auto operator-=(VectorTN<T, 2>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator*=(const VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
+auto operator*=(VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator*=(const VectorTN<T, 2>& t, const T& u)
+auto operator*=(VectorTN<T, 2>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator/=(const VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
+auto operator/=(VectorTN<T, 2>& t, const VectorTN<T, 2>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator/=(const VectorTN<T, 2>& t, const T& u)
+auto operator/=(VectorTN<T, 2>& t, const T& u)
 {
 	t = t + u;
 }
@@ -629,42 +629,42 @@ auto operator!=(const T& t, const VectorTN<T, 3>& u)
 	return result;
 }
 template<typename T>
-auto operator+=(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
+auto operator+=(VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator+=(const VectorTN<T, 3>& t, const T& u)
+auto operator+=(VectorTN<T, 3>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator-=(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
+auto operator-=(VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator-=(const VectorTN<T, 3>& t, const T& u)
+auto operator-=(VectorTN<T, 3>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator*=(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
+auto operator*=(VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator*=(const VectorTN<T, 3>& t, const T& u)
+auto operator*=(VectorTN<T, 3>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator/=(const VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
+auto operator/=(VectorTN<T, 3>& t, const VectorTN<T, 3>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator/=(const VectorTN<T, 3>& t, const T& u)
+auto operator/=(VectorTN<T, 3>& t, const T& u)
 {
 	t = t + u;
 }
@@ -855,42 +855,42 @@ auto operator!=(const T& t, const VectorTN<T, 4>& u)
 	return result;
 }
 template<typename T>
-auto operator+=(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
+auto operator+=(VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator+=(const VectorTN<T, 4>& t, const T& u)
+auto operator+=(VectorTN<T, 4>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator-=(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
+auto operator-=(VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator-=(const VectorTN<T, 4>& t, const T& u)
+auto operator-=(VectorTN<T, 4>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator*=(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
+auto operator*=(VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator*=(const VectorTN<T, 4>& t, const T& u)
+auto operator*=(VectorTN<T, 4>& t, const T& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator/=(const VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
+auto operator/=(VectorTN<T, 4>& t, const VectorTN<T, 4>& u)
 {
 	t = t + u;
 }
 template<typename T>
-auto operator/=(const VectorTN<T, 4>& t, const T& u)
+auto operator/=(VectorTN<T, 4>& t, const T& u)
 {
 	t = t + u;
 }

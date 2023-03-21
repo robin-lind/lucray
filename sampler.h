@@ -18,7 +18,7 @@ struct Sampler
     }
 
 private:
-    int                                   seed;
-    std::mt19937                          mt;
+    int seed;
+    std::mt19937 mt;
     std::uniform_real_distribution<float> rand_float;
 };

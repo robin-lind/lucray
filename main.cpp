@@ -51,24 +51,23 @@ int main(int argc, char *argv[])
     auto sink_file = std::make_shared<AixLog::SinkFile>(AixLog::Severity::trace, "logfile.log");
     AixLog::Log::init({ sink_cout, sink_file });
 
-    argh::parser cmdl(argc, argv);
+    const argh::parser cmdl(argc, argv);
 
     int spp = 1, width = 1, height = 1;
     if (!(cmdl("w") >> width))
-        LOG(WARNING) << "No image width provided! Defaulting to: " << width << " (-w)!" << std::endl;
+        LOG(WARNING) << "No image width provided! Defaulting to: " << width << " (-w=N)!" << std::endl;
     if (!(cmdl("h") >> height))
-        LOG(WARNING) << "No image height provided! Defaulting to: " << height << " (-h)!" << std::endl;
+        LOG(WARNING) << "No image height provided! Defaulting to: " << height << " (-h=N)!" << std::endl;
     if (!(cmdl("s") >> spp))
-        LOG(WARNING) << "No samples per pixel provided! Defaulting to: " << spp << " (-s)!" << std::endl;
+        LOG(WARNING) << "No samples per pixel provided! Defaulting to: " << spp << " (-s=N)!" << std::endl;
     bool infinite_rendering = false;
     if (spp < 0)
     {
         infinite_rendering = true;
-        spp                = 1;
+        spp = 1;
     }
 
-    auto                     working_directory = std::filesystem::current_path();
-    std::vector<std::string> positional(std::begin(cmdl.pos_args()) + 1, std::end(cmdl.pos_args()));
+    const std::vector<std::string> positional(std::begin(cmdl.pos_args()) + 1, std::end(cmdl.pos_args()));
     if (positional.empty())
     {
         LOG(ERROR) << "No input files!" << std::endl;
@@ -76,13 +75,14 @@ int main(int argc, char *argv[])
     }
     std::vector<std::string> input_files;
     input_files.reserve(positional.size());
+    auto working_directory = std::filesystem::current_path();
     for (const auto& pos : positional)
         input_files.emplace_back(working_directory / std::filesystem::path(pos));
 
     if (input_files.size() > 1)
         LOG(INFO) << "More than one input file is currently not supported!" << std::endl;
 
-    std::string            & inputfile = input_files.front();
+    const std::string& inputfile = input_files.front();
     tinyobj::ObjReaderConfig reader_config;
     reader_config.mtl_search_path = std::filesystem::path(input_files.front()).parent_path();
 
@@ -97,8 +97,10 @@ int main(int argc, char *argv[])
     }
     if (!reader.Warning().empty())
         LOG(WARNING) << "TinyObjReader: " << reader.Warning() << std::endl;
-    const auto& attrib    = reader.GetAttrib();
-    const auto& shapes    = reader.GetShapes();
+    LOG(INFO) << "Loaded model: " << inputfile << std::endl;
+    LOG(INFO) << "Rendering: " << width << "x" << height << " " << spp << "spp" << std::endl;
+    const auto& attrib = reader.GetAttrib();
+    const auto& shapes = reader.GetShapes();
     const auto& materials = reader.GetMaterials();
 
     std::vector<luc::Vector3> vertices;
@@ -134,12 +136,12 @@ int main(int argc, char *argv[])
     const float fov_x = 70.f;
     // const luc::Vector3     eye{ 100.0f, 66.0f, 100.0f };
     // const luc::Vector3     target{ 0.f, 0.f, 0.f };
-    const luc::Vector3     eye{ 0.f, 1.31f, 4.7f };
-    const luc::Vector3     target{ 0.f, 1.f, 2.94f };
-    const RayCamera        camera(width, height, eye, target, { 0.f, 1.f, 0.f }, fov_x);
-    Sampler                sampler(0);
-    const size_t           ray_count = static_cast<size_t>(width) * height;
-    std::vector<Ray>       rays;
+    const luc::Vector3 eye{ 0.f, 1.31f, 4.7f };
+    const luc::Vector3 target{ 0.f, 1.f, 2.94f };
+    const RayCamera camera(width, height, eye, target, { 0.f, 1.f, 0.f }, fov_x);
+    Sampler sampler(0);
+    const size_t ray_count = static_cast<size_t>(width) * height;
+    std::vector<Ray> rays;
     std::vector<HitRecord> records;
 
     std::array<std::vector<float>, 3> images;
@@ -173,9 +175,9 @@ int main(int argc, char *argv[])
                 color = luc::Vector3(1.f, .17f, .3f) * std::max(0.f, luc::Dot(record.n, luc::Normalize(record.p - luc::Vector3(0.f, 100.f, 0.f)))); //((record.n * .5f) + .5f)
             else
                 color = { 0.f };
-            size_t idx   = record.idx.x + record.idx.y * width;
-            auto & pixel = framebuffer[idx];
-            pixel        = pixel + luc::Vector4(color, 1.f);
+            const size_t idx = record.idx.x + record.idx.y * width;
+            auto& pixel = framebuffer[idx];
+            pixel = pixel + luc::Vector4(color, 1.f);
         }
 
         rays.clear();
@@ -183,33 +185,31 @@ int main(int argc, char *argv[])
 
         for (size_t i = 0; i < framebuffer.size(); i++)
         {
-            auto& pixel  = framebuffer[i];
+            auto& pixel = framebuffer[i];
             images[0][i] = pixel.r / pixel.w;
             images[1][i] = pixel.g / pixel.w;
             images[2][i] = pixel.b / pixel.w;
         }
 
-        std::string file_name = "out.exr";
-        EXRHeader   header;
+        const std::string file_name = "out.exr";
+        EXRHeader header;
         InitEXRHeader(&header);
 
         EXRImage image;
         InitEXRImage(&image);
-
         image.num_channels = 3;
 
         std::array<float *, 3> image_ptr;
-        // float *image_ptr[3];
         image_ptr[0] = images[2].data(); // B
         image_ptr[1] = images[1].data(); // G
         image_ptr[2] = images[0].data(); // R
 
         image.images = (unsigned char **)image_ptr.data();
-        image.width  = width;
+        image.width = width;
         image.height = height;
 
         header.num_channels = 3;
-        header.channels     = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
+        header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
         // Must be (A)BGR order, since most of EXR viewers expect this channel order.
         strncpy(header.channels[0].name, "B", 255);
         header.channels[0].name[strlen("B")] = '\0';
@@ -218,16 +218,16 @@ int main(int argc, char *argv[])
         strncpy(header.channels[2].name, "R", 255);
         header.channels[2].name[strlen("R")] = '\0';
 
-        header.pixel_types           = (int *)malloc(sizeof(int) * header.num_channels);
+        header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
         header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
         for (int i = 0; i < header.num_channels; i++)
         {
-            header.pixel_types[i]           = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-            header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF;  // pixel type of output image to be stored in .EXR
+            header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT;          // pixel type of input image
+            header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
         }
 
         const char *err = nullptr; // or nullptr in C++11 or later.
-        int         ret = SaveEXRImageToFile(&image, &header, file_name.c_str(), &err);
+        const int ret = SaveEXRImageToFile(&image, &header, file_name.c_str(), &err);
         if (ret != TINYEXR_SUCCESS)
         {
             FreeEXRErrorMessage(err); // free's buffer for an error message
@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
         free(header.requested_pixel_types);
 
         if (infinite_rendering) spp = s + 1;
-        auto end  = std::chrono::system_clock::now();
+        auto end = std::chrono::system_clock::now();
         auto span = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         if (span.count() < 9999)
         {

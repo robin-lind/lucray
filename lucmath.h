@@ -52,7 +52,7 @@ union MatrixTN
       C(c) {}
 
     std::array<VectorTN<T, N>, N> C;
-    std::array<T, N * N>          E{};
+    std::array<T, N * N> E{};
 };
 
 template<typename T>
@@ -76,7 +76,7 @@ union AffineT
       columns({ tangent_, bi_tangent_, normal_, offset_ }) {}
 
     std::array<VectorTN<T, 3>, 4> columns;
-    VectorTN<T, 3>                tangent, bi_tangent, normal, offset;
+    VectorTN<T, 3> tangent, bi_tangent, normal, offset;
 
     struct
     {
@@ -170,10 +170,10 @@ auto MakeOrthoNormalBase(const VectorTN<T, 3>& normal)
 {
     // pixar technique
     // do not use sign(n.z), it can produce 0.0
-    const auto sign_z     = normal.z >= 0.f ? static_cast<T>(1) : static_cast<T>(-1);
-    const auto a          = static_cast<T>(-1) / (sign_z + normal.z);
-    const auto b          = normal.x * normal.y * a;
-    const auto tangent    = VectorTN<T, 3>(static_cast<T>(1) + sign_z * normal.x * normal.x * a, sign_z * b, -sign_z * normal.x);
+    const auto sign_z = normal.z >= 0.f ? static_cast<T>(1) : static_cast<T>(-1);
+    const auto a = static_cast<T>(-1) / (sign_z + normal.z);
+    const auto b = normal.x * normal.y * a;
+    const auto tangent = VectorTN<T, 3>(static_cast<T>(1) + sign_z * normal.x * normal.x * a, sign_z * b, -sign_z * normal.x);
     const auto bi_tangent = VectorTN<T, 3>(b, sign_z + normal.y * normal.y * a, -normal.y);
     return MatrixTN<T, 3>({ tangent, bi_tangent, normal });
 }
@@ -198,6 +198,38 @@ auto Max(const VectorTN<T, N>& t, const VectorTN<T, N>& u)
     }
     (std::make_index_sequence<N>{});
     return result;
+}
+
+template<typename T>
+auto Map(const T x, const T in_min, const T in_max, const T out_min, const T out_max)
+{
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+template<typename T, size_t N>
+auto Map(const T x, const VectorTN<T, N>& in_min, const VectorTN<T, N>& in_max, const VectorTN<T, N>& out_min, const VectorTN<T, N>& out_max)
+{
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+template<typename T>
+auto Lerp(const T x, const T a, const T b)
+{
+    return (T(1) - x) * a + x * b;
+}
+
+template<typename T, size_t N>
+auto Lerp(const T x, const VectorTN<T, N>& a, const VectorTN<T, N>& b)
+{
+    return (T(1) - x) * a + x * b;
+}
+
+template<typename T>
+auto Clamp(const T x, const T min, const T max)
+{
+    if (x < min) return min;
+    if (x > max) return max;
+    return x;
 }
 
 template<size_t N>
@@ -228,7 +260,7 @@ struct Bounds
     Bounds(const VectorTN<T, N>& t, const Ts&...args) :
       min(t), max(t)
     {
-        constexpr auto                         Size = sizeof...(args);
+        constexpr auto Size = sizeof...(args);
         const std::array<VectorTN<T, N>, Size> items{ VectorTN<T, N>(args)... };
         for (const auto& v : items)
             Union(v);

@@ -41,15 +41,15 @@ struct TriangleI
 
 struct HitRecord
 {
-    bool         hit;
-    luc::Int2    idx;
+    bool hit;
+    luc::Int2 idx;
     luc::Vector3 p;
     luc::Vector3 n;
 };
 
 struct Intersection
 {
-    float        distance;
+    float distance;
     luc::Vector3 position;
     luc::Vector3 normal_geometric;
 };

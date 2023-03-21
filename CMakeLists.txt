@@ -4,9 +4,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include(CTest)
-enable_testing()
-
 set (EXTERN_SRC_LIST
 tinyexr/deps/miniz/miniz.c
 )
@@ -24,10 +21,8 @@ tinyexr/deps/miniz
 aixlog/include
 )
 
+add_subdirectory("raylib")
+
 add_executable(lucray ${SRC_LIST})
 target_include_directories(lucray PUBLIC ${INCLUDE_LIST})
-target_link_libraries(lucray)
-
-set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-include(CPack)
+target_link_libraries(lucray raylib)
