@@ -25,18 +25,18 @@
 #ifndef LUC_RAY_H
 #define LUC_RAY_H
 
-#include "lucmath.h"
+#include "math/vector.h"
 
 struct Ray
 {
     Ray() :
       Ray({}, {}) {}
 
-    Ray(luc::Vector3 o, luc::Vector3 d) :
+    Ray(math::Vector3 o, math::Vector3 d) :
       O(o), D(d) {}
 
-    luc::Vector3 O{};
-    luc::Vector3 D{};
+    math::Vector3 O{};
+    math::Vector3 D{};
 };
 
 #endif /* LUC_RAY_H */

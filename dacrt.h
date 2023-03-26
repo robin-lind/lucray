@@ -25,7 +25,7 @@
 #ifndef LUC_DACRT_H
 #define LUC_DACRT_H
 
-#include "lucmath.h"
+#include "math/vector.h"
 #include "lucmath_gen.h"
 #include "ray.h"
 #include <vector>
@@ -42,18 +42,18 @@ struct TriangleI
 struct HitRecord
 {
     bool hit;
-    luc::Int2 idx;
-    luc::Vector3 p;
-    luc::Vector3 n;
+    math::Int2 idx;
+    math::Vector3 p;
+    math::Vector3 n;
 };
 
 struct Intersection
 {
     float distance;
-    luc::Vector3 position;
-    luc::Vector3 normal_geometric;
+    math::Vector3 position;
+    math::Vector3 normal_geometric;
 };
 
-void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& triangles, const std::vector<luc::Vector3>& vertices, std::vector<HitRecord>& records);
+void Intersect(const std::vector<Ray>& rays, const std::vector<TriangleI>& triangles, const std::vector<math::Vector3>& vertices, std::vector<HitRecord>& records);
 
 #endif /* LUC_DACRT_H */

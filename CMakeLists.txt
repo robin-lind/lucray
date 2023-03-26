@@ -11,8 +11,6 @@ tinyexr/deps/miniz/miniz.c
 set (SRC_LIST
 main.cpp
 implementation.cpp
-camera.cpp
-dacrt.cpp
 ${EXTERN_SRC_LIST}
 )
 

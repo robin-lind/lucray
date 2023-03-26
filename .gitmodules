@@ -13,3 +13,6 @@
 [submodule "raylib"]
 	path = raylib
 	url = https://github.com/raysan5/raylib.git
+[submodule "math"]
+	path = math
+	url = https://github.com/robin-lind/lucmath.git

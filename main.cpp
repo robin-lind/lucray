@@ -31,19 +31,21 @@
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include <random>
 #include <ostream>
 #include <iterator>
 #include <string>
 #include <filesystem>
 #include <vector>
 #include "argh/argh.h"
+#include "raylib.hpp"
 #include "aixlog.hpp"
-#include "lucmath_gen.h"
-#include "tinyobjloader/tiny_obj_loader.h"
-#include "tinyexr/tinyexr.h"
-#include "lucmath.h"
-#include "dacrt.h"
+#include "math/vector.h"
 #include "camera.h"
+#include "load_model.h"
+#include "framebuffer.h"
+#include "parallel_for.h"
+#include "traversal.h"
 
 int main(int argc, char *argv[])
 {
@@ -82,175 +84,139 @@ int main(int argc, char *argv[])
     if (input_files.size() > 1)
         LOG(INFO) << "More than one input file is currently not supported!" << std::endl;
 
-    const std::string& inputfile = input_files.front();
-    tinyobj::ObjReaderConfig reader_config;
-    reader_config.mtl_search_path = std::filesystem::path(input_files.front()).parent_path();
-
-    tinyobj::ObjReader reader;
-    if (!reader.ParseFromFile(inputfile, reader_config))
+    std::vector<std::tuple<int, int, int>> triangles;
+    std::vector<math::float3> vertices;
+    std::vector<math::float3> normals;
+    std::tie(triangles, vertices, normals) = load_model(input_files.front());
+    auto get_tri = [&](size_t i)
     {
-        if (!reader.Error().empty())
-            LOG(ERROR) << "TinyObjReader: " << reader.Error() << std::endl;
-        else
-            LOG(ERROR) << "TinyObjReader: Unknown parse error!" << std::endl;
-        return 1;
-    }
-    if (!reader.Warning().empty())
-        LOG(WARNING) << "TinyObjReader: " << reader.Warning() << std::endl;
-    LOG(INFO) << "Loaded model: " << inputfile << std::endl;
-    LOG(INFO) << "Rendering: " << width << "x" << height << " " << spp << "spp" << std::endl;
-    const auto& attrib = reader.GetAttrib();
-    const auto& shapes = reader.GetShapes();
-    const auto& materials = reader.GetMaterials();
-
-    std::vector<luc::Vector3> vertices;
-    vertices.reserve(attrib.vertices.size() / 3);
-    for (size_t i = 0; i < attrib.vertices.size(); i += 3)
-    {
-        const auto& a = attrib.vertices[i + 0];
-        const auto& b = attrib.vertices[i + 1];
-        const auto& c = attrib.vertices[i + 2];
-        vertices.emplace_back(a, b, c);
-    }
-    std::vector<luc::Vector3> normals;
-    normals.reserve(attrib.normals.size() / 3);
-    for (size_t i = 0; i < attrib.normals.size(); i += 3)
-    {
-        const auto& a = attrib.normals[i + 0];
-        const auto& b = attrib.normals[i + 1];
-        const auto& c = attrib.normals[i + 2];
-        normals.emplace_back(a, b, c);
-    }
-    std::vector<TriangleI> triangles;
-    for (const auto& shape : shapes)
-    {
-        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++)
+        auto get_vec = [&](const math::float3 v)
         {
-            const auto& a = shape.mesh.indices[f * 3 + 0].vertex_index;
-            const auto& b = shape.mesh.indices[f * 3 + 1].vertex_index;
-            const auto& c = shape.mesh.indices[f * 3 + 2].vertex_index;
-            triangles.emplace_back(a, b, c);
-        }
-    }
+            return *(bvh::Vec<float, 3> *)(&v);
+        };
+        const auto& tri = triangles[i]; 
+        const auto v0 = get_vec(vertices[std::get<0>(tri)]);
+        const auto v1 = get_vec(vertices[std::get<1>(tri)]);
+        const auto v2 = get_vec(vertices[std::get<2>(tri)]);
+        return bvh::Tri<float, 3>(v0, v1, v2);
+    };
+    traversal<float> trav(get_tri, triangles.size());
+    LOG(INFO) << "Rendering: " << width << "x" << height << " " << spp << "spp" << std::endl;
 
     const float fov_x = 70.f;
-    // const luc::Vector3     eye{ 100.0f, 66.0f, 100.0f };
-    // const luc::Vector3     target{ 0.f, 0.f, 0.f };
-    const luc::Vector3 eye{ 0.f, 1.31f, 4.7f };
-    const luc::Vector3 target{ 0.f, 1.f, 2.94f };
-    const RayCamera camera(width, height, eye, target, { 0.f, 1.f, 0.f }, fov_x);
-    Sampler sampler(0);
-    const size_t ray_count = static_cast<size_t>(width) * height;
-    std::vector<Ray> rays;
-    std::vector<HitRecord> records;
-
-    std::array<std::vector<float>, 3> images;
-    for (auto& image : images)
-        image.resize(static_cast<size_t>(width) * height);
-    std::vector<luc::Vector4> framebuffer;
-    framebuffer.resize(static_cast<size_t>(width) * height);
-
-    for (int s = 0; s < spp || infinite_rendering; s++)
+    // const math::float3     eye{ 100.0f, 66.0f, 100.0f };
+    // const math::float3     target{ 0.f, 0.f, 0.f };
+    const math::float3 eye{ 0.f, 1.31f, 4.7f };
+    const math::float3 target{ 0.f, 1.f, 2.94f };
+    const ray_camera<float> camera(width, height, eye, target, { 0.f, 1.f, 0.f }, fov_x);
+    luc::framebuffer<math::float3> framebuffer(width, height);
+    bool done = false;
+    abort_token aborter;
+    std::mutex preview_mutex;
+    std::vector<work_range<int> *> active_ranges;
+    auto render_worker = [&]()
     {
-        auto start = std::chrono::system_clock::now();
-        rays.reserve(ray_count);
-        records.reserve(ray_count);
-        for (int y = 0; y < height; y++)
+        int frame = 0;
+        while (!aborter.aborted)
         {
-            for (int x = 0; x < width; x++)
+            std::random_device rd_outer;
+            std::mt19937 rng_outer(rd_outer());
+            const auto sample_count = spp;
+            const auto samples_sqrt = (int)std::ceil(std::sqrt(sample_count));
+            const auto sample_count_true = samples_sqrt * samples_sqrt;
+            std::vector<math::float4> samples;
+            for (size_t v = 0; v < samples_sqrt; v++)
+                for (size_t u = 0; u < samples_sqrt; u++)
+                    samples.emplace_back(
+                      (((float)u + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)samples_sqrt) - .5f,
+                      (((float)v + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)samples_sqrt) - .5f,
+                      1.f / (float)sample_count_true,
+                      ((float)samples.size() + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)sample_count_true);
+            auto start = std::chrono::steady_clock::now();
+            std::cout << "frame(" << frame << ")";
+            // memset(framebuffer.pixels.data(), 0, framebuffer.pixels.size() * sizeof(math::float3));
+            const auto domain = generate_parallel_for_domain(width, height);
+            auto tile_func = [&](const work_block<int>& block)
             {
-                rays.emplace_back(camera.CameraRay(x, y, sampler));
-                HitRecord record;
-                record.idx = { x, y };
-                record.hit = false;
-                records.emplace_back(record);
-            }
+                static thread_local work_range<int> *active_range = nullptr;
+                if (!active_range)
+                {
+                    const std::scoped_lock preview_lock(preview_mutex);
+                    active_range = new work_range<int>(block.tile);
+                    active_ranges.push_back(active_range);
+                }
+                else
+                {
+                    *active_range = block.tile;
+                }
+                // std::random_device rd_inner;
+                // std::mt19937 rng_inner(rd_inner());
+                auto item_func = [&](const int x, const int y, auto&& transform)
+                {
+                    math::float3 color;
+                    for (auto& sample : samples)
+                    {
+                        math::float3 ray_org, ray_dir;
+                        std::tie(ray_org, ray_dir) = camera.ray(transform(sample.xy));
+                        // const auto c = render_ray(ray_org,ray_dir,trav);
+                        const bool hit = trav.traverse(ray_org, ray_dir);
+                        const math::float3 c = hit ? math::float3(0.f, 1.f, 0.f) : math::float3(0.f, 0.f, 0.f);
+                        color += c * sample.z;
+                    }
+                    framebuffer.pixel(x, y) = color;
+                };
+                iterate_over_tile(block, aborter, item_func);
+            };
+            parallel_for<int, true>(domain, tile_func, aborter);
+            frame++;
+            const auto end = std::chrono::steady_clock::now();
+            const std::chrono::duration<double> elapsed_seconds = end - start;
+            std::cout << " in: " << elapsed_seconds.count() << "s" << std::endl;
+            for (auto *range : active_ranges)
+                delete range;
+            active_ranges.clear();
         }
-        Intersect(rays, triangles, vertices, records);
+        done = true;
+    };
 
-        for (const auto& record : records)
+    raylib::SetConfigFlags(raylib::FLAG_WINDOW_UNDECORATED);
+    raylib::InitWindow(width, height, "");
+    raylib::SetTargetFPS(60);
+    raylib::SetWindowPosition(0, 0);
+    const auto frame_texture_id = raylib::rlLoadTexture(framebuffer.pixels.data(), width, height, raylib::PIXELFORMAT_UNCOMPRESSED_R32G32B32, 1);
+    auto update_and_draw_fullscreen_texture = [width,height,frame_texture_id,&framebuffer]()
+    {
+        raylib::rlUpdateTexture(frame_texture_id, 0, 0, width, height, raylib::PIXELFORMAT_UNCOMPRESSED_R32G32B32, framebuffer.pixels.data());
+        raylib::rlSetTexture(frame_texture_id);
+        raylib::rlBegin(RL_QUADS);
+        raylib::rlColor4ub(255, 255, 255, 255);
+        raylib::rlNormal3f(0.f, 0.f, 1.f);
+        raylib::rlTexCoord2f(0.f, 0.f);
+        raylib::rlVertex2f(0.f, 0.f);
+        raylib::rlTexCoord2f(0.f, 1.f);
+        raylib::rlVertex2f(0.f, (float)height);
+        raylib::rlTexCoord2f(1.f, 1.f);
+        raylib::rlVertex2f((float)width, (float)height);
+        raylib::rlTexCoord2f(1.f, 0.f);
+        raylib::rlVertex2f((float)width, 0.f);
+        raylib::rlEnd();
+        raylib::rlSetTexture(0);
+    };
+    const std::thread render_thread(render_worker);
+    while (!done)
+    {
+        raylib::BeginDrawing();
+        raylib::ClearBackground(raylib::BLACK);
+        update_and_draw_fullscreen_texture();
         {
-            luc::Vector3 color;
-            if (record.hit)
-                color = luc::Vector3(1.f, .17f, .3f) * std::max(0.f, luc::Dot(record.n, luc::Normalize(record.p - luc::Vector3(0.f, 100.f, 0.f)))); //((record.n * .5f) + .5f)
-            else
-                color = { 0.f };
-            const size_t idx = record.idx.x + record.idx.y * width;
-            auto& pixel = framebuffer[idx];
-            pixel = pixel + luc::Vector4(color, 1.f);
+            const std::scoped_lock preview_lock(preview_mutex);
+            for (auto *range : active_ranges)
+                raylib::DrawRectangleLines(range->minx, range->miny, range->maxx - range->minx, range->maxy - range->miny, raylib::WHITE);
         }
-
-        rays.clear();
-        records.clear();
-
-        for (size_t i = 0; i < framebuffer.size(); i++)
-        {
-            auto& pixel = framebuffer[i];
-            images[0][i] = pixel.r / pixel.w;
-            images[1][i] = pixel.g / pixel.w;
-            images[2][i] = pixel.b / pixel.w;
-        }
-
-        const std::string file_name = "out.exr";
-        EXRHeader header;
-        InitEXRHeader(&header);
-
-        EXRImage image;
-        InitEXRImage(&image);
-        image.num_channels = 3;
-
-        std::array<float *, 3> image_ptr;
-        image_ptr[0] = images[2].data(); // B
-        image_ptr[1] = images[1].data(); // G
-        image_ptr[2] = images[0].data(); // R
-
-        image.images = (unsigned char **)image_ptr.data();
-        image.width = width;
-        image.height = height;
-
-        header.num_channels = 3;
-        header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-        // Must be (A)BGR order, since most of EXR viewers expect this channel order.
-        strncpy(header.channels[0].name, "B", 255);
-        header.channels[0].name[strlen("B")] = '\0';
-        strncpy(header.channels[1].name, "G", 255);
-        header.channels[1].name[strlen("G")] = '\0';
-        strncpy(header.channels[2].name, "R", 255);
-        header.channels[2].name[strlen("R")] = '\0';
-
-        header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-        header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-        for (int i = 0; i < header.num_channels; i++)
-        {
-            header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT;          // pixel type of input image
-            header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-        }
-
-        const char *err = nullptr; // or nullptr in C++11 or later.
-        const int ret = SaveEXRImageToFile(&image, &header, file_name.c_str(), &err);
-        if (ret != TINYEXR_SUCCESS)
-        {
-            FreeEXRErrorMessage(err); // free's buffer for an error message
-            return ret;
-        }
-
-        free(header.channels);
-        free(header.pixel_types);
-        free(header.requested_pixel_types);
-
-        if (infinite_rendering) spp = s + 1;
-        auto end = std::chrono::system_clock::now();
-        auto span = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        if (span.count() < 9999)
-        {
-            LOG(INFO) << "Sample: " << (s + 1) << "/" << spp << " in " << span.count() << "ms" << std::endl;
-        }
-        else
-        {
-            span = std::chrono::duration_cast<std::chrono::seconds>(end - start);
-            LOG(INFO) << "Sample: " << (s + 1) << "/" << spp << " in " << span.count() << "s" << std::endl;
-        }
+        raylib::EndDrawing();
+        if (raylib::IsKeyPressed(raylib::KeyboardKey::KEY_ESCAPE))
+            aborter.abort();
     }
-
+    raylib::CloseWindow();
     return 0;
 }

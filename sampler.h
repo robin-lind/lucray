@@ -1,6 +1,6 @@
 #pragma once
 #include <random>
-#include "lucmath.h"
+#include "math/vector.h"
 
 struct Sampler
 {
@@ -12,7 +12,7 @@ struct Sampler
         return rand_float(mt);
     }
 
-    luc::Vector2 Get2D()
+    math::Vector2 Get2D()
     {
         return { rand_float(mt), rand_float(mt) };
     }

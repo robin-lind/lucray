@@ -1,16 +1,29 @@
 #pragma once
-#include "lucmath.h"
-#include "lucmath_gen.h"
-#include "sampler.h"
-#include "ray.h"
+#include "math/vector.h"
+#include <utility>
 
-struct RayCamera
+template<typename TFloat = float>
+struct ray_camera
 {
-    RayCamera(int width, int height, luc::Vector3 eye, luc::Vector3 target, luc::Vector3 up, float fov);
-    Ray CameraRay(int x, int y, Sampler& sampler) const;
-    luc::Vector3 pos;
-    luc::Vector3 X, Y, Z;
-    luc::Vector2 resolution;
-    float aspect;
+    math::vector_tn<TFloat, 3> pos;
+    math::vector_tn<TFloat, 3> X, Y, Z;
+    float inv_aspect;
     float backfocus;
+
+    ray_camera(int width, int height, math::vector_tn<TFloat, 3> eye, math::vector_tn<TFloat, 3> target, math::vector_tn<TFloat, 3> up, float fov)
+    {
+        pos = eye;
+        Z = math::normalize(target - eye);
+        X = math::normalize(math::cross(Z, up));
+        Y = math::normalize(math::cross(Z, X));
+        inv_aspect = (float)height / (float)width; // image width is 1
+        backfocus = .5f / std::tan(fov * .5f * 3.14159f / 180.f);
+    }
+
+    std::pair<math::vector_tn<TFloat, 3>, math::vector_tn<TFloat, 3>> ray(math::vector_tn<TFloat, 2> uv) const
+    {
+        const auto image_plane = math::normalize(math::vector_tn<TFloat, 3>(uv.u, uv.v * inv_aspect, backfocus));
+        const auto dir = (X * image_plane.x) + (Y * image_plane.y) + (Z * image_plane.z);
+        return std::make_pair(pos, dir);
+    }
 };
