@@ -30,8 +30,7 @@
 #include "ray.h"
 #include <vector>
 
-struct TriangleI
-{
+struct TriangleI {
     int A, B, C;
     TriangleI() = default;
 
@@ -39,16 +38,14 @@ struct TriangleI
       A(a), B(b), C(c) {}
 };
 
-struct HitRecord
-{
+struct HitRecord {
     bool hit;
     math::Int2 idx;
     math::Vector3 p;
     math::Vector3 n;
 };
 
-struct Intersection
-{
+struct Intersection {
     float distance;
     math::Vector3 position;
     math::Vector3 normal_geometric;

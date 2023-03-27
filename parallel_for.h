@@ -10,8 +10,7 @@
 #include <optional>
 
 template<typename TSize>
-struct work_range
-{
+struct work_range {
     TSize minx, maxx, miny, maxy;
     work_range() = default;
 
@@ -20,8 +19,7 @@ struct work_range
 };
 
 template<typename TSize>
-struct work_domain
-{
+struct work_domain {
     work_range<TSize> range;
     std::vector<work_range<TSize>> ranges;
     work_domain() = default;
@@ -31,8 +29,7 @@ struct work_domain
 };
 
 template<typename TSize>
-struct work_block
-{
+struct work_block {
     work_range<TSize> tile;
     work_range<TSize> domain;
     work_block() = default;
@@ -48,8 +45,7 @@ std::pair<work_range<TSize>, work_range<TSize>> split_range(const work_range<TSi
     const auto h = range.maxy - range.miny;
     bool vertical = false;
     auto min = range.miny, max = range.maxy;
-    if (w > h)
-    {
+    if (w > h) {
         vertical = true;
         min = range.minx;
         max = range.maxx;
@@ -70,21 +66,18 @@ work_domain<TSize> generate_parallel_for_domain(TSize min_x, TSize max_x, TSize 
     work_domain<TSize> domain(min_x, max_x, min_y, max_y);
     std::queue<work_range<TSize>> queue;
     queue.push(domain.range);
-    while (!queue.empty())
-    {
+    while (!queue.empty()) {
         const auto range = queue.front();
         queue.pop();
         const TSize max_size = 64;
         const auto w = range.maxx - range.minx;
         const auto h = range.maxy - range.miny;
-        if (std::max(w, h) > max_size)
-        {
+        if (std::max(w, h) > max_size) {
             auto split = split_range(range);
             queue.push(split.first);
             queue.push(split.second);
         }
-        else
-        {
+        else {
             domain.ranges.push_back(range);
         }
     }
@@ -106,8 +99,7 @@ std::queue<work_range<TSize>> range_queue_from_domain(const std::vector<work_ran
     return range_queue;
 }
 
-struct abort_token
-{
+struct abort_token {
     bool aborted = false;
     abort_token() = default;
 
@@ -120,16 +112,13 @@ struct abort_token
 template<typename TSize, typename TFloat = float>
 void iterate_over_tile(const work_block<TSize>& block, const abort_token& aborter, auto&& item_func)
 {
-    for (auto y = block.tile.miny; y < block.tile.maxy && !aborter.aborted; y++)
-    {
-        for (auto x = block.tile.minx; x < block.tile.maxx; x++)
-        {
+    for (auto y = block.tile.miny; y < block.tile.maxy && !aborter.aborted; y++) {
+        for (auto x = block.tile.minx; x < block.tile.maxx; x++) {
             const auto minx = math::map<TFloat>(x, block.domain.minx, block.domain.maxx, 0, 1) - TFloat(.5);
             const auto miny = math::map<TFloat>(y, block.domain.miny, block.domain.maxy, 0, 1) - TFloat(.5);
             const auto maxx = math::map<TFloat>(x + TFloat(1.), block.domain.minx, block.domain.maxx, 0, 1) - TFloat(.5);
             const auto maxy = math::map<TFloat>(y + TFloat(1.), block.domain.miny, block.domain.maxy, 0, 1) - TFloat(.5);
-            auto transform = [minx, miny, maxx, maxy](math::vector_tn<TFloat, 2> uv)
-            {
+            auto transform = [minx, miny, maxx, maxy](math::vector_tn<TFloat, 2> uv) {
                 const auto su = math::map<TFloat>(uv.u, -.5f, .5f, minx, maxx);
                 const auto sv = math::map<TFloat>(uv.v, -.5f, .5f, miny, maxy);
                 return math::vector_tn<TFloat, 2>(su, sv);
@@ -150,11 +139,9 @@ void parallel_for(const work_domain<TSize>& domain, auto&& tile_func, abort_toke
     // const auto number_of_threads = hardware_concurrency * 32 / 22;
     // const auto number_of_threads = hardware_concurrency * 3 / 2;
     const auto thread_count = parallel ? number_of_threads : 1;
-    auto worker = [&]()
-    {
+    auto worker = [&]() {
         work_block<TSize> block(domain.range, domain.range);
-        while (!aborter.aborted)
-        {
+        while (!aborter.aborted) {
             {
                 const std::scoped_lock stealing_work(work_stealing_mutex);
                 if (range_queue.size() == 0)
@@ -163,8 +150,7 @@ void parallel_for(const work_domain<TSize>& domain, auto&& tile_func, abort_toke
                 range_queue.pop();
                 const auto w = block.tile.maxx - block.tile.minx;
                 const auto h = block.tile.maxy - block.tile.miny;
-                if (range_queue.size() < thread_count && std::min(w, h) > 4)
-                {
+                if (range_queue.size() < thread_count && std::min(w, h) > 4) {
                     const auto& split = split_range(block.tile);
                     range_queue.push(split.second);
                     block.tile = split.first;

@@ -13,8 +13,7 @@ auto load_model(const std::string& inputfile)
     reader_config.mtl_search_path = std::filesystem::path(inputfile).parent_path();
 
     tinyobj::ObjReader reader;
-    if (!reader.ParseFromFile(inputfile, reader_config))
-    {
+    if (!reader.ParseFromFile(inputfile, reader_config)) {
         if (!reader.Error().empty())
             LOG(ERROR) << "TinyObjReader: " << reader.Error() << std::endl;
         else
@@ -29,8 +28,7 @@ auto load_model(const std::string& inputfile)
 
     std::vector<math::float3> vertices;
     vertices.reserve(attrib.vertices.size() / 3);
-    for (size_t i = 0; i < attrib.vertices.size(); i += 3)
-    {
+    for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
         const auto& a = attrib.vertices[i + 0];
         const auto& b = attrib.vertices[i + 1];
         const auto& c = attrib.vertices[i + 2];
@@ -38,18 +36,15 @@ auto load_model(const std::string& inputfile)
     }
     std::vector<math::float3> normals;
     normals.reserve(attrib.normals.size() / 3);
-    for (size_t i = 0; i < attrib.normals.size(); i += 3)
-    {
+    for (size_t i = 0; i < attrib.normals.size(); i += 3) {
         const auto& a = attrib.normals[i + 0];
         const auto& b = attrib.normals[i + 1];
         const auto& c = attrib.normals[i + 2];
         normals.emplace_back(a, b, c);
     }
     std::vector<std::tuple<int, int, int>> triangles;
-    for (const auto& shape : shapes)
-    {
-        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++)
-        {
+    for (const auto& shape : shapes) {
+        for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
             const auto& a = shape.mesh.indices[f * 3 + 0].vertex_index;
             const auto& b = shape.mesh.indices[f * 3 + 1].vertex_index;
             const auto& c = shape.mesh.indices[f * 3 + 2].vertex_index;

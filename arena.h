@@ -47,8 +47,7 @@ constexpr size_t GByte(size_t g)
 
 constexpr size_t DEFAULT_ARENA_SIZE = MByte(5);
 
-struct arena_allocator
-{
+struct arena_allocator {
     char *start;
     char *current;
     size_t size;
@@ -118,8 +117,7 @@ struct arena_allocator
 };
 
 template<typename T, typename Counter = size_t>
-struct arena_list
-{
+struct arena_list {
     T *ptr = nullptr;
     Counter size = 0;
 
@@ -143,8 +141,7 @@ struct arena_list
 };
 
 template<typename T, typename Counter = size_t>
-struct expanding_list
-{
+struct expanding_list {
     arena_allocator& arena;
     T *ptr = nullptr;
     Counter count = 0;

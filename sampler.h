@@ -2,8 +2,7 @@
 #include <random>
 #include "math/vector.h"
 
-struct Sampler
-{
+struct Sampler {
     Sampler(int seed = 0) :
       seed(seed), mt((unsigned int)seed), rand_float(0.f, 1.f) {}
 

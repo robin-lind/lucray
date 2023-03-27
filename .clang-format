@@ -19,8 +19,8 @@ AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: Always
-AllowShortCaseLabelsOnASingleLine: false
-AllowShortEnumsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLambdasOnASingleLine: Inline
@@ -31,25 +31,26 @@ AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true
 BinPackParameters: true
 BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: false
   AfterControlStatement: Always
-  AfterCaseLabel: true
-  AfterClass: true
-  AfterEnum: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterStruct: true
-  AfterUnion: true
-  AfterExternBlock: true
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeCatch: true
   BeforeElse: true
-  BeforeLambdaBody: true
+  BeforeLambdaBody: false
   BeforeWhile: true
-  IndentBraces:  false
-  SplitEmptyFunction: true
-  SplitEmptyRecord: true
-  SplitEmptyNamespace: true
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
 BreakBeforeBinaryOperators: None
-BreakBeforeBraces: Allman
-BreakBeforeConceptDeclarations: true
+BreakBeforeBraces: Stroustrup
+BreakBeforeConceptDeclarations: Always
 BreakBeforeTernaryOperators: false
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterColon

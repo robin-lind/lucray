@@ -1,11 +1,9 @@
 #pragma once
 #include <vector>
 
-namespace luc
-{
+namespace luc {
 template<typename TColor>
-struct framebuffer
-{
+struct framebuffer {
     int width, height;
     std::vector<TColor> pixels;
     framebuffer() = default;

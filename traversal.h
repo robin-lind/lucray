@@ -6,8 +6,7 @@
 #include "math/vector.h"
 
 template<typename TFloat = float>
-struct traversal
-{
+struct traversal {
     std::vector<bvh::PrecomputedTri<TFloat>> ptriangles;
 
     bvh::Bvh<bvh::Node<TFloat, 3>> accelerator;
@@ -20,10 +19,8 @@ struct traversal
         std::vector<bvh::BBox<TFloat, 3>> bboxes(triangle_count);
         std::vector<bvh::Vec<TFloat, 3>> centers(triangle_count);
         executor.for_each(0, triangle_count,
-                          [&](size_t begin, size_t end)
-                          {
-                              for (size_t i = begin; i < end; ++i)
-                              {
+                          [&](size_t begin, size_t end) {
+                              for (size_t i = begin; i < end; ++i) {
                                   const auto tri = triangle(i);
                                   bboxes[i] = tri.get_bbox();
                                   centers[i] = tri.get_center();
@@ -36,8 +33,7 @@ struct traversal
 
         ptriangles.resize(triangle_count);
         executor.for_each(0, triangle_count,
-                          [&](size_t begin, size_t end)
-                          {
+                          [&](size_t begin, size_t end) {
                               for (size_t i = begin; i < end; ++i)
                                   ptriangles[i] = triangle(accelerator.prim_ids[i]);
                           });
@@ -54,12 +50,9 @@ struct traversal
         auto prim_id = invalid_id;
         TFloat u, v;
 
-        auto leaf_test = [&](size_t begin, size_t end)
-        {
-            for (size_t i = begin; i < end; ++i)
-            {
-                if (auto hit = ptriangles[i].intersect(ray))
-                {
+        auto leaf_test = [&](size_t begin, size_t end) {
+            for (size_t i = begin; i < end; ++i) {
+                if (auto hit = ptriangles[i].intersect(ray)) {
                     prim_id = i;
                     std::tie(u, v) = *hit;
                 }

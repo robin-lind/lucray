@@ -63,36 +63,30 @@
 #define BVH_ALWAYS_INLINE inline
 #endif
 
-namespace bvh
-{
+namespace bvh {
 
 /// Helper type that gives an unsigned integer type with the given number of bits.
 template<size_t Bits>
-struct UnsignedInt
-{
+struct UnsignedInt {
 };
 
 template<>
-struct UnsignedInt<8>
-{
+struct UnsignedInt<8> {
     using Type = uint8_t;
 };
 
 template<>
-struct UnsignedInt<16>
-{
+struct UnsignedInt<16> {
     using Type = uint16_t;
 };
 
 template<>
-struct UnsignedInt<32>
-{
+struct UnsignedInt<32> {
     using Type = uint32_t;
 };
 
 template<>
-struct UnsignedInt<64>
-{
+struct UnsignedInt<64> {
     using Type = uint64_t;
 };
 
@@ -100,8 +94,7 @@ template<size_t Bits>
 using UnsignedIntType = typename UnsignedInt<Bits>::Type;
 
 /// Helper callable object that just ignores its arguments and returns nothing.
-struct IgnoreArgs
-{
+struct IgnoreArgs {
     template<typename... Args>
     void operator()(Args&&...) const
     {
@@ -170,8 +163,7 @@ BVH_ALWAYS_INLINE T fast_mul_add(T a, T b, T c)
 template<size_t Begin, size_t End, typename F>
 BVH_ALWAYS_INLINE void static_for(F&& f)
 {
-    if constexpr (Begin < End)
-    {
+    if constexpr (Begin < End) {
         f(Begin);
         static_for<Begin + 1, End>(std::forward<F>(f));
     }
@@ -193,8 +185,7 @@ BVH_ALWAYS_INLINE T split_bits(T x)
     constexpr size_t log_bits = round_up_log2(bit_count);
     auto mask = static_cast<T>(-1) >> (bit_count / 2);
     x &= mask;
-    for (size_t i = log_bits - 1, n = size_t{ 1 } << i; i > 0; --i, n >>= 1)
-    {
+    for (size_t i = log_bits - 1, n = size_t{ 1 } << i; i > 0; --i, n >>= 1) {
         mask = (mask | (mask << n)) & ~(mask << (n / 2));
         x = (x | (x << n)) & mask;
     }
@@ -220,9 +211,8 @@ BVH_ALWAYS_INLINE T atomic_max(std::atomic<T>& atomic, const T& value)
 }
 
 template<typename T, size_t N>
-struct Vec
-{
-    T values[N];
+struct Vec {
+    std::array<T, N> values;
 
     Vec() = default;
 
@@ -234,15 +224,14 @@ struct Vec
 
     BVH_ALWAYS_INLINE explicit Vec(T x)
     {
-        std::fill(values, values + N, x);
+        std::fill(std::begin(values), std::end(values), x);
     }
 
     template<typename Compare>
     BVH_ALWAYS_INLINE size_t get_best_axis(Compare&& compare) const
     {
         size_t axis = 0;
-        static_for<1, N>([&](size_t i)
-                         { 
+        static_for<1, N>([&](size_t i) { 
             if (compare(values[i], values[axis]))
                 axis = i; });
         return axis;
@@ -273,8 +262,7 @@ struct Vec
     BVH_ALWAYS_INLINE static Vec<T, N> generate(F&& f)
     {
         Vec<T, N> v;
-        static_for<0, N>([&](size_t i)
-                         { v[i] = f(i); });
+        static_for<0, N>([&](size_t i) { v[i] = f(i); });
         return v;
     }
 };
@@ -282,43 +270,37 @@ struct Vec
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> operator+(const Vec<T, N>& a, const Vec<T, N>& b)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return a[i] + b[i]; });
+    return Vec<T, N>::generate([&](size_t i) { return a[i] + b[i]; });
 }
 
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> operator-(const Vec<T, N>& a, const Vec<T, N>& b)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return a[i] - b[i]; });
+    return Vec<T, N>::generate([&](size_t i) { return a[i] - b[i]; });
 }
 
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> operator-(const Vec<T, N>& a)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return -a[i]; });
+    return Vec<T, N>::generate([&](size_t i) { return -a[i]; });
 }
 
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> operator*(const Vec<T, N>& a, const Vec<T, N>& b)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return a[i] * b[i]; });
+    return Vec<T, N>::generate([&](size_t i) { return a[i] * b[i]; });
 }
 
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> operator/(const Vec<T, N>& a, const Vec<T, N>& b)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return a[i] / b[i]; });
+    return Vec<T, N>::generate([&](size_t i) { return a[i] / b[i]; });
 }
 
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> operator*(const Vec<T, N>& a, T b)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return a[i] * b; });
+    return Vec<T, N>::generate([&](size_t i) { return a[i] * b; });
 }
 
 template<typename T, size_t N>
@@ -330,22 +312,19 @@ BVH_ALWAYS_INLINE Vec<T, N> operator*(T a, const Vec<T, N>& b)
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> operator/(T a, const Vec<T, N>& b)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return a / b[i]; });
+    return Vec<T, N>::generate([&](size_t i) { return a / b[i]; });
 }
 
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> robust_min(const Vec<T, N>& a, const Vec<T, N>& b)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return robust_min(a[i], b[i]); });
+    return Vec<T, N>::generate([&](size_t i) { return robust_min(a[i], b[i]); });
 }
 
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> robust_max(const Vec<T, N>& a, const Vec<T, N>& b)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return robust_max(a[i], b[i]); });
+    return Vec<T, N>::generate([&](size_t i) { return robust_max(a[i], b[i]); });
 }
 
 template<typename T, size_t N>
@@ -366,15 +345,13 @@ BVH_ALWAYS_INLINE Vec<T, 3> cross(const Vec<T, 3>& a, const Vec<T, 3>& b)
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> fast_mul_add(const Vec<T, N>& a, const Vec<T, N>& b, const Vec<T, N>& c)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return fast_mul_add(a[i], b[i], c[i]); });
+    return Vec<T, N>::generate([&](size_t i) { return fast_mul_add(a[i], b[i], c[i]); });
 }
 
 template<typename T, size_t N>
 BVH_ALWAYS_INLINE Vec<T, N> safe_inverse(const Vec<T, N>& v)
 {
-    return Vec<T, N>::generate([&](size_t i)
-                               { return safe_inverse(v[i]); });
+    return Vec<T, N>::generate([&](size_t i) { return safe_inverse(v[i]); });
 }
 
 template<typename T, size_t N>
@@ -390,8 +367,7 @@ BVH_ALWAYS_INLINE Vec<T, N> normalize(const Vec<T, N>& v)
 }
 
 template<typename T, size_t N>
-struct BBox
-{
+struct BBox {
     Vec<T, N> min, max;
 
     BBox() = default;
@@ -441,8 +417,7 @@ struct BBox
     }
 };
 
-struct Octant
-{
+struct Octant {
     uint32_t value = 0;
     static constexpr size_t max_dim = sizeof(value) * CHAR_BIT;
 
@@ -453,8 +428,7 @@ struct Octant
 };
 
 template<typename T, size_t N>
-struct Ray
-{
+struct Ray {
     Vec<T, N> org, dir;
     T tmin, tmax;
 
@@ -471,30 +445,26 @@ struct Ray
 
     BVH_ALWAYS_INLINE Vec<T, N> get_inv_dir() const
     {
-        return Vec<T, N>::generate([&](size_t i)
-                                   { return safe_inverse(dir[i]); });
+        return Vec<T, N>::generate([&](size_t i) { return safe_inverse(dir[i]); });
     }
 
     BVH_ALWAYS_INLINE Octant get_octant() const
     {
         static_assert(N <= Octant::max_dim);
         Octant octant;
-        static_for<0, N>([&](size_t i)
-                         { octant.value |= std::signbit(dir[i]) * (uint32_t{ 1 } << i); });
+        static_for<0, N>([&](size_t i) { octant.value |= std::signbit(dir[i]) * (uint32_t{ 1 } << i); });
         return octant;
     }
 
     // Pads the inverse direction according to T. Ize's "Robust BVH ray traversal"
     BVH_ALWAYS_INLINE static Vec<T, N> pad_inv_dir(const Vec<T, N>& inv_dir)
     {
-        return Vec<T, N>::generate([&](size_t i)
-                                   { return add_ulp_magnitude(inv_dir[i], 2); });
+        return Vec<T, N>::generate([&](size_t i) { return add_ulp_magnitude(inv_dir[i], 2); });
     }
 };
 
 /// Stream of data that can be used to deserialize data structures.
-class InputStream
-{
+class InputStream {
 public:
     template<typename T>
     T read(T&& default_val = {})
@@ -510,8 +480,7 @@ protected:
 };
 
 /// Stream of data that can be used to serialize data structures.
-class OutputStream
-{
+class OutputStream {
 public:
     template<typename T>
     bool write(const T& data)
@@ -524,8 +493,7 @@ protected:
 };
 
 /// Stream adapter for standard library input streams.
-class StdInputStream : public InputStream
-{
+class StdInputStream : public InputStream {
 public:
     StdInputStream(std::istream& stream) :
       stream_(stream)
@@ -545,8 +513,7 @@ protected:
 };
 
 /// Stream adapter for standard library output streams.
-class StdOutputStream : public OutputStream
-{
+class StdOutputStream : public OutputStream {
 public:
     StdOutputStream(std::ostream& stream) :
       stream_(stream)
@@ -570,8 +537,7 @@ template<
   size_t Dim,
   size_t IndexBits = sizeof(T) * CHAR_BIT,
   size_t PrimCountBits = 4>
-struct Node
-{
+struct Node {
     using Scalar = T;
     static constexpr size_t dimension = Dim;
     static constexpr size_t prim_count_bits = PrimCountBits;
@@ -580,8 +546,7 @@ struct Node
 
     std::array<T, Dim * 2> bounds;
 
-    struct Index
-    {
+    struct Index {
         using Type = UnsignedIntType<IndexBits>;
         Type first_id : std::numeric_limits<Type>::digits - prim_count_bits;
         Type prim_count : prim_count_bits;
@@ -643,30 +608,25 @@ struct Node
     BVH_ALWAYS_INLINE BBox<T, Dim> get_bbox() const
     {
         return BBox<T, Dim>(
-          Vec<T, Dim>::generate([&](size_t i)
-                                { return bounds[i * 2]; }),
-          Vec<T, Dim>::generate([&](size_t i)
-                                { return bounds[i * 2 + 1]; }));
+          Vec<T, Dim>::generate([&](size_t i) { return bounds[i * 2]; }),
+          Vec<T, Dim>::generate([&](size_t i) { return bounds[i * 2 + 1]; }));
     }
 
     BVH_ALWAYS_INLINE void set_bbox(const BBox<T, Dim>& bbox)
     {
-        static_for<0, Dim>([&](size_t i)
-                           {
+        static_for<0, Dim>([&](size_t i) {
             bounds[i * 2 + 0] = bbox.min[i];
             bounds[i * 2 + 1] = bbox.max[i]; });
     }
 
     BVH_ALWAYS_INLINE Vec<T, Dim> get_min_bounds(const Octant& octant) const
     {
-        return Vec<T, Dim>::generate([&](size_t i)
-                                     { return bounds[2 * static_cast<uint32_t>(i) + octant[i]]; });
+        return Vec<T, Dim>::generate([&](size_t i) { return bounds[2 * static_cast<uint32_t>(i) + octant[i]]; });
     }
 
     BVH_ALWAYS_INLINE Vec<T, Dim> get_max_bounds(const Octant& octant) const
     {
-        return Vec<T, Dim>::generate([&](size_t i)
-                                     { return bounds[2 * static_cast<uint32_t>(i) + 1 - octant[i]]; });
+        return Vec<T, Dim>::generate([&](size_t i) { return bounds[2 * static_cast<uint32_t>(i) + 1 - octant[i]]; });
     }
 
     /// Robust ray-node intersection routine. See "Robust BVH Ray Traversal", by T. Ize.
@@ -718,8 +678,7 @@ private:
     {
         auto t0 = ray.tmin;
         auto t1 = ray.tmax;
-        static_for<0, Dim>([&](size_t i)
-                           {
+        static_for<0, Dim>([&](size_t i) {
             t0 = robust_max(tmin[i], t0);
             t1 = robust_min(tmax[i], t1); });
         return std::pair<T, T>{ t0, t1 };
@@ -727,8 +686,7 @@ private:
 };
 
 template<typename Node>
-struct Bvh
-{
+struct Bvh {
     using Index = typename Node::Index;
     using Scalar = typename Node::Scalar;
 
@@ -774,23 +732,20 @@ auto Bvh<Node>::extract_bvh(size_t root_id) const -> Bvh
 
     std::stack<std::pair<size_t, size_t>> stack;
     stack.emplace(root_id, 0);
-    while (!stack.empty())
-    {
+    while (!stack.empty()) {
         auto [src_id, dst_id] = stack.top();
         stack.pop();
         auto& src_node = nodes[src_id];
         auto& dst_node = bvh.nodes[dst_id];
         dst_node = src_node;
-        if (src_node.is_leaf())
-        {
+        if (src_node.is_leaf()) {
             dst_node.index.first_id = static_cast<typename Index::Type>(bvh.prim_ids.size());
             std::copy_n(
               prim_ids.begin() + src_node.index.first_id,
               src_node.index.prim_count,
               std::back_inserter(bvh.prim_ids));
         }
-        else
-        {
+        else {
             size_t first_id = bvh.nodes.size();
             dst_node.index.first_id = static_cast<typename Index::Type>(first_id);
             bvh.nodes.emplace_back();
@@ -811,18 +766,15 @@ void Bvh<Node>::intersect(Ray<Scalar, Node::dimension>& ray, Index start, Stack&
     auto inv_dir_pad = Ray<Scalar, Node::dimension>::pad_inv_dir(inv_dir);
     auto octant = ray.get_octant();
 
-    auto intersect_node = [&](const Node& node)
-    {
+    auto intersect_node = [&](const Node& node) {
         return IsRobust ? node.intersect_robust(ray, inv_dir, inv_dir_pad, octant) : node.intersect_fast(ray, inv_dir, inv_org, octant);
     };
 
     stack.push(start);
 restart:
-    while (!stack.is_empty())
-    {
+    while (!stack.is_empty()) {
         auto top = stack.pop();
-        while (top.prim_count == 0)
-        {
+        while (top.prim_count == 0) {
             auto& left = nodes[top.first_id];
             auto& right = nodes[top.first_id + 1];
 
@@ -834,11 +786,9 @@ restart:
             bool hit_left = intr_left.first <= intr_left.second;
             bool hit_right = intr_right.first <= intr_right.second;
 
-            if (hit_left)
-            {
+            if (hit_left) {
                 auto near = left.index;
-                if (hit_right)
-                {
+                if (hit_right) {
                     auto far = right.index;
                     if (!IsAnyHit && intr_left.first > intr_right.first)
                         std::swap(near, far);
@@ -853,8 +803,7 @@ restart:
         }
 
         [[maybe_unused]] auto was_hit = leaf_fn(top.first_id, top.first_id + top.prim_count);
-        if constexpr (IsAnyHit)
-        {
+        if constexpr (IsAnyHit) {
             if (was_hit) return;
         }
     }
@@ -885,8 +834,7 @@ Bvh<Node> Bvh<Node>::deserialize(InputStream& stream)
 }
 
 template<typename T, size_t N>
-struct Tri
-{
+struct Tri {
     Vec<T, N> p0, p1, p2;
 
     Tri() = default;
@@ -909,8 +857,7 @@ struct Tri
 
 /// A 3d triangle, represented as two edges and a point, with an (unnormalized, left-handed) normal.
 template<typename T>
-struct PrecomputedTri
-{
+struct PrecomputedTri {
     Vec<T, 3> p0, e1, e2, n;
 
     PrecomputedTri() = default;
@@ -962,11 +909,9 @@ std::optional<std::pair<T, T>> PrecomputedTri<T>::intersect(Ray<T, 3>& ray, T to
 
     // These comparisons are designed to return false
     // when one of t, u, or v is a NaN
-    if (u >= tolerance && v >= tolerance && w >= tolerance)
-    {
+    if (u >= tolerance && v >= tolerance && w >= tolerance) {
         auto t = dot(n, c) * inv_det;
-        if (t >= ray.tmin && t <= ray.tmax)
-        {
+        if (t >= ray.tmin && t <= ray.tmax) {
             ray.tmax = t;
             return std::make_optional(std::pair<T, T>{ u, v });
         }
@@ -977,11 +922,10 @@ std::optional<std::pair<T, T>> PrecomputedTri<T>::intersect(Ray<T, 3>& ray, T to
 
 /// Fixed-size stack that can be used for a BVH traversal.
 template<typename T, unsigned Capacity>
-struct SmallStack
-{
+struct SmallStack {
     static constexpr unsigned capacity = Capacity;
 
-    T elems[capacity];
+    std::array<T, capacity> elems;
     unsigned size = 0;
 
     bool is_empty() const
@@ -1010,8 +954,7 @@ struct SmallStack
 /// Growing stack that can be used for BVH traversal. Its performance may be lower than a small,
 /// fixed-size stack, depending on the architecture.
 template<typename T>
-struct GrowingStack
-{
+struct GrowingStack {
     std::vector<T> elems;
 
     bool is_empty() const
@@ -1033,8 +976,7 @@ struct GrowingStack
     }
 };
 
-class ThreadPool
-{
+class ThreadPool {
 public:
     using Task = std::function<void(size_t)>;
 
@@ -1088,19 +1030,16 @@ void ThreadPool::push(Task&& task)
 void ThreadPool::wait()
 {
     std::unique_lock<std::mutex> lock(mutex_);
-    done_.wait(lock, [this]
-               { return busy_count_ == 0 && tasks_.empty(); });
+    done_.wait(lock, [this] { return busy_count_ == 0 && tasks_.empty(); });
 }
 
 void ThreadPool::worker(ThreadPool *pool, size_t thread_id)
 {
-    while (true)
-    {
+    while (true) {
         Task task;
         {
             std::unique_lock<std::mutex> lock(pool->mutex_);
-            pool->avail_.wait(lock, [pool]
-                              { return pool->should_stop_ || !pool->tasks_.empty(); });
+            pool->avail_.wait(lock, [pool] { return pool->should_stop_ || !pool->tasks_.empty(); });
             if (pool->should_stop_ && pool->tasks_.empty())
                 break;
             task = std::move(pool->tasks_.front());
@@ -1141,8 +1080,7 @@ void ThreadPool::join()
 
 /// Helper object that provides iteration and reduction over one-dimensional ranges.
 template<typename Derived>
-struct Executor
-{
+struct Executor {
     template<typename Loop>
     inline void for_each(size_t begin, size_t end, const Loop& loop)
     {
@@ -1157,8 +1095,7 @@ struct Executor
 };
 
 /// Executor that executes serially.
-struct SequentialExecutor : Executor<SequentialExecutor>
-{
+struct SequentialExecutor : Executor<SequentialExecutor> {
     template<typename Loop>
     void for_each(size_t begin, size_t end, const Loop& loop)
     {
@@ -1175,8 +1112,7 @@ struct SequentialExecutor : Executor<SequentialExecutor>
 };
 
 /// Executor that executes in parallel using the given thread pool.
-struct ParallelExecutor : Executor<ParallelExecutor>
-{
+struct ParallelExecutor : Executor<ParallelExecutor> {
     ThreadPool& thread_pool;
     size_t parallel_threshold;
 
@@ -1192,11 +1128,9 @@ struct ParallelExecutor : Executor<ParallelExecutor>
             return loop(begin, end);
 
         auto chunk_size = std::max(size_t{ 1 }, (end - begin) / thread_pool.get_thread_count());
-        for (size_t i = begin; i < end; i += chunk_size)
-        {
+        for (size_t i = begin; i < end; i += chunk_size) {
             size_t next = std::min(end, i + chunk_size);
-            thread_pool.push([=](size_t)
-                             { loop(i, next); });
+            thread_pool.push([=](size_t) { loop(i, next); });
         }
         thread_pool.wait();
     }
@@ -1204,8 +1138,7 @@ struct ParallelExecutor : Executor<ParallelExecutor>
     template<typename T, typename Reduce, typename Join>
     T reduce(size_t begin, size_t end, const T& init, const Reduce& reduce, const Join& join)
     {
-        if (end - begin < parallel_threshold)
-        {
+        if (end - begin < parallel_threshold) {
             T result(init);
             reduce(result, begin, end);
             return result;
@@ -1213,11 +1146,9 @@ struct ParallelExecutor : Executor<ParallelExecutor>
 
         auto chunk_size = std::max(size_t{ 1 }, (end - begin) / thread_pool.get_thread_count());
         std::vector<T> per_thread_result(thread_pool.get_thread_count(), init);
-        for (size_t i = begin; i < end; i += chunk_size)
-        {
+        for (size_t i = begin; i < end; i += chunk_size) {
             size_t next = std::min(end, i + chunk_size);
-            thread_pool.push([&, i, next](size_t thread_id)
-                             {
+            thread_pool.push([&, i, next](size_t thread_id) {
                 auto& result = per_thread_result[thread_id];
                 reduce(result, i, next); });
         }
@@ -1229,8 +1160,7 @@ struct ParallelExecutor : Executor<ParallelExecutor>
 };
 
 template<typename T>
-class SplitHeuristic
-{
+class SplitHeuristic {
 public:
     /// Creates an SAH evaluator object, used by top-down builders to determine where to split.
     /// The two parameters are the log of the size of primitive clusters in base 2, and the ratio of
@@ -1268,16 +1198,14 @@ private:
 
 /// Base class for all SAH-based, top-down builders.
 template<typename Node>
-class TopDownSahBuilder
-{
+class TopDownSahBuilder {
 protected:
     using Scalar = typename Node::Scalar;
     using Vec = bvh::Vec<Scalar, Node::dimension>;
     using BBox = bvh::BBox<Scalar, Node::dimension>;
 
 public:
-    struct Config
-    {
+    struct Config {
         /// SAH heuristic parameters that control how primitives are partitioned.
         SplitHeuristic<Scalar> sah;
 
@@ -1293,8 +1221,7 @@ public:
     };
 
 protected:
-    struct WorkItem
-    {
+    struct WorkItem {
         size_t node_id;
         size_t begin;
         size_t end;
@@ -1337,16 +1264,13 @@ protected:
 
         std::stack<WorkItem> stack;
         stack.push(WorkItem{ 0, 0, prim_count });
-        while (!stack.empty())
-        {
+        while (!stack.empty()) {
             auto item = stack.top();
             stack.pop();
 
             auto& node = bvh.nodes[item.node_id];
-            if (item.size() > config_.min_leaf_size)
-            {
-                if (auto split_pos = try_split(node.get_bbox(), item.begin, item.end))
-                {
+            if (item.size() > config_.min_leaf_size) {
+                if (auto split_pos = try_split(node.get_bbox(), item.begin, item.end)) {
                     auto first_child = bvh.nodes.size();
                     node.make_inner(first_child);
 
@@ -1361,8 +1285,7 @@ protected:
                     // it is the child with the largest area, as it is more likely to contain an
                     // an occluder. See "SATO: Surface Area Traversal Order for Shadow Ray Tracing",
                     // by J. Nah and D. Manocha.
-                    if (first_bbox.get_half_area() < second_bbox.get_half_area())
-                    {
+                    if (first_bbox.get_half_area() < second_bbox.get_half_area()) {
                         std::swap(first_bbox, second_bbox);
                         std::swap(first_range, second_range);
                     }
@@ -1403,8 +1326,7 @@ protected:
 /// Single-threaded top-down builder that partitions primitives based on the Surface
 /// Area Heuristic (SAH). Primitives are only sorted once along each axis.
 template<typename Node>
-class SweepSahBuilder : public TopDownSahBuilder<Node>
-{
+class SweepSahBuilder : public TopDownSahBuilder<Node> {
     using typename TopDownSahBuilder<Node>::Scalar;
     using typename TopDownSahBuilder<Node>::Vec;
     using typename TopDownSahBuilder<Node>::BBox;
@@ -1426,8 +1348,7 @@ public:
     }
 
 protected:
-    struct Split
-    {
+    struct Split {
         size_t pos;
         Scalar cost;
         size_t axis;
@@ -1445,12 +1366,10 @@ protected:
     {
         marks_.resize(bboxes.size());
         accum_.resize(bboxes.size());
-        for (size_t axis = 0; axis < Node::dimension; ++axis)
-        {
+        for (size_t axis = 0; axis < Node::dimension; ++axis) {
             prim_ids_[axis].resize(bboxes.size());
             std::iota(prim_ids_[axis].begin(), prim_ids_[axis].end(), 0);
-            std::sort(prim_ids_[axis].begin(), prim_ids_[axis].end(), [&](size_t i, size_t j)
-                      { return centers[i][axis] < centers[j][axis]; });
+            std::sort(prim_ids_[axis].begin(), prim_ids_[axis].end(), [&](size_t i, size_t j) { return centers[i][axis] < centers[j][axis]; });
         }
     }
 
@@ -1465,19 +1384,16 @@ protected:
 
         // Sweep from the right to the left, computing the partial SAH cost
         auto right_bbox = BBox::make_empty();
-        for (size_t i = end - 1; i > begin;)
-        {
+        for (size_t i = end - 1; i > begin;) {
             static constexpr size_t chunk_size = 32;
             size_t next = i - std::min(i - begin, chunk_size);
             auto right_cost = static_cast<Scalar>(0.);
-            for (; i > next; --i)
-            {
+            for (; i > next; --i) {
                 right_bbox.extend(bboxes_[prim_ids_[axis][i]]);
                 accum_[i] = right_cost = config_.sah.get_leaf_cost(i, end, right_bbox);
             }
             // Every `chunk_size` elements, check that we are not above the maximum cost
-            if (right_cost > best_split.cost)
-            {
+            if (right_cost > best_split.cost) {
                 first_right = i;
                 break;
             }
@@ -1487,8 +1403,7 @@ protected:
         auto left_bbox = BBox::make_empty();
         for (size_t i = begin; i < first_right; ++i)
             left_bbox.extend(bboxes_[prim_ids_[axis][i]]);
-        for (size_t i = first_right; i < end - 1; ++i)
-        {
+        for (size_t i = first_right; i < end - 1; ++i) {
             left_bbox.extend(bboxes_[prim_ids_[axis][i]]);
             auto left_cost = config_.sah.get_leaf_cost(begin, i + 1, left_bbox);
             auto cost = left_cost + accum_[i + 1];
@@ -1514,8 +1429,7 @@ protected:
             find_best_split(axis, begin, end, best_split);
 
         // Make sure that the split is good before proceeding with it
-        if (best_split.cost >= leaf_cost)
-        {
+        if (best_split.cost >= leaf_cost) {
             if (end - begin <= config_.max_leaf_size)
                 return std::nullopt;
 
@@ -1528,15 +1442,13 @@ protected:
         // Partition primitives (keeping the order intact so that the next recursive calls do not
         // need to sort primitives again).
         mark_primitives(best_split.axis, begin, best_split.pos, end);
-        for (size_t axis = 0; axis < Node::dimension; ++axis)
-        {
+        for (size_t axis = 0; axis < Node::dimension; ++axis) {
             if (axis == best_split.axis)
                 continue;
             std::stable_partition(
               prim_ids_[axis].begin() + begin,
               prim_ids_[axis].begin() + end,
-              [&](size_t i)
-              { return marks_[i]; });
+              [&](size_t i) { return marks_[i]; });
         }
 
         return std::make_optional(best_split.pos);
@@ -1547,8 +1459,7 @@ protected:
 /// the Surface Area Heuristic (SAH). This builder is inspired by
 /// "On Fast Construction of SAH-based Bounding Volume Hierarchies", by I. Wald.
 template<typename Node, size_t BinCount = 8>
-class BinnedSahBuilder : public TopDownSahBuilder<Node>
-{
+class BinnedSahBuilder : public TopDownSahBuilder<Node> {
     using typename TopDownSahBuilder<Node>::Scalar;
     using typename TopDownSahBuilder<Node>::Vec;
     using typename TopDownSahBuilder<Node>::BBox;
@@ -1571,15 +1482,13 @@ public:
     }
 
 protected:
-    struct Split
-    {
+    struct Split {
         size_t bin_id;
         Scalar cost;
         size_t axis;
     };
 
-    struct Bin
-    {
+    struct Bin {
         BBox bbox = BBox::make_empty();
         size_t prim_count = 0;
 
@@ -1630,11 +1539,9 @@ protected:
         auto bin_scale = Vec(BinCount) / bbox.get_diagonal();
         auto bin_offset = -bbox.min * bin_scale;
 
-        for (size_t i = begin; i < end; ++i)
-        {
+        for (size_t i = begin; i < end; ++i) {
             auto pos = fast_mul_add(centers_[prim_ids_[i]], bin_scale, bin_offset);
-            static_for<0, Node::dimension>([&](size_t axis)
-                                           {
+            static_for<0, Node::dimension>([&](size_t axis) {
                 size_t index = std::min(BinCount - 1,
                     static_cast<size_t>(robust_max(pos[axis], static_cast<Scalar>(0.))));
                 per_axis_bins[axis][index].add(bboxes_[prim_ids_[i]]); });
@@ -1645,15 +1552,13 @@ protected:
     {
         Bin right_accum;
         std::array<Scalar, BinCount> right_costs;
-        for (size_t i = BinCount - 1; i > 0; --i)
-        {
+        for (size_t i = BinCount - 1; i > 0; --i) {
             right_accum.add(bins[i]);
             right_costs[i] = right_accum.get_cost(config_.sah);
         }
 
         Bin left_accum;
-        for (size_t i = 0; i < BinCount - 1; ++i)
-        {
+        for (size_t i = 0; i < BinCount - 1; ++i) {
             left_accum.add(bins[i]);
             auto cost = left_accum.get_cost(config_.sah) + right_costs[i + 1];
             if (cost < best_split.cost)
@@ -1668,8 +1573,7 @@ protected:
           prim_ids_.begin() + begin,
           prim_ids_.begin() + mid,
           prim_ids_.begin() + end,
-          [&](size_t i, size_t j)
-          { return centers_[i][axis] < centers_[j][axis]; });
+          [&](size_t i, size_t j) { return centers_[i][axis] < centers_[j][axis]; });
         return mid;
     }
 
@@ -1685,8 +1589,7 @@ protected:
 
         // Make sure that the split is good before proceeding with it
         auto leaf_cost = config_.sah.get_non_split_cost(begin, end, bbox);
-        if (best_split.cost >= leaf_cost)
-        {
+        if (best_split.cost >= leaf_cost) {
             if (end - begin <= config_.max_leaf_size)
                 return std::nullopt;
             return fallback_split(largest_axis, begin, end);
@@ -1698,8 +1601,7 @@ protected:
           bbox.min[best_split.axis]);
 
         size_t index = std::partition(prim_ids_.begin() + begin, prim_ids_.begin() + end,
-                                      [&](size_t i)
-                                      { return centers_[i][best_split.axis] < split_pos; }) -
+                                      [&](size_t i) { return centers_[i][best_split.axis] < split_pos; }) -
                        prim_ids_.begin();
         if (index == begin || index == end)
             return fallback_split(largest_axis, begin, end);
@@ -1714,15 +1616,13 @@ protected:
 /// This builder is inspired by
 /// "Rapid Bounding Volume Hierarchy Generation using Mini Trees", by P. Ganestam et al.
 template<typename Node, typename MortonCode = uint32_t>
-class MiniTreeBuilder
-{
+class MiniTreeBuilder {
     using Scalar = typename Node::Scalar;
     using Vec = bvh::Vec<Scalar, Node::dimension>;
     using BBox = bvh::BBox<Scalar, Node::dimension>;
 
 public:
-    struct Config : TopDownSahBuilder<Node>::Config
-    {
+    struct Config : TopDownSahBuilder<Node>::Config {
         /// Flag that turns on/off mini-tree pruning.
         bool enable_pruning = true;
 
@@ -1755,8 +1655,7 @@ public:
 private:
     friend struct BuildTask;
 
-    struct Bin
-    {
+    struct Bin {
         std::vector<size_t> ids;
 
         BVH_ALWAYS_INLINE void add(size_t id)
@@ -1768,16 +1667,14 @@ private:
         {
             if (ids.empty())
                 ids = std::move(other.ids);
-            else
-            {
+            else {
                 ids.insert(ids.end(), other.ids.begin(), other.ids.end());
                 other.ids.clear();
             }
         }
     };
 
-    struct LocalBins
-    {
+    struct LocalBins {
         std::vector<Bin> bins;
 
         BVH_ALWAYS_INLINE Bin& operator[](size_t i)
@@ -1792,8 +1689,7 @@ private:
 
         BVH_ALWAYS_INLINE void merge_small_bins(size_t threshold)
         {
-            for (size_t i = 0; i < bins.size();)
-            {
+            for (size_t i = 0; i < bins.size();) {
                 size_t j = i + 1;
                 for (; j < bins.size() && bins[j].ids.size() + bins[i].ids.size() <= threshold; ++j)
                     bins[i].merge(std::move(bins[j]));
@@ -1804,8 +1700,7 @@ private:
         BVH_ALWAYS_INLINE void remove_empty_bins()
         {
             bins.resize(std::remove_if(bins.begin(), bins.end(),
-                                       [](const Bin& bin)
-                                       { return bin.ids.empty(); }) -
+                                       [](const Bin& bin) { return bin.ids.empty(); }) -
                         bins.begin());
         }
 
@@ -1817,8 +1712,7 @@ private:
         }
     };
 
-    struct BuildTask
-    {
+    struct BuildTask {
         MiniTreeBuilder *builder;
         Bvh<Node>& bvh;
         std::vector<size_t> prim_ids;
@@ -1842,8 +1736,7 @@ private:
             // Extract bounding boxes and centers for this set of primitives
             bboxes.resize(prim_ids.size());
             centers.resize(prim_ids.size());
-            for (size_t i = 0; i < prim_ids.size(); ++i)
-            {
+            for (size_t i = 0; i < prim_ids.size(); ++i) {
                 bboxes[i] = builder->bboxes_[prim_ids[i]];
                 centers[i] = builder->centers_[prim_ids[i]];
             }
@@ -1876,13 +1769,11 @@ private:
         // Compute the bounding box of all centers
         auto center_bbox = executor_.reduce(
           0, bboxes_.size(), BBox::make_empty(),
-          [this](BBox& bbox, size_t begin, size_t end)
-          {
+          [this](BBox& bbox, size_t begin, size_t end) {
               for (size_t i = begin; i < end; ++i)
                   bbox.extend(centers_[i]);
           },
-          [](BBox& bbox, const BBox& other)
-          { bbox.extend(other); });
+          [](BBox& bbox, const BBox& other) { bbox.extend(other); });
 
         assert(config_.log2_grid_dim <= std::numeric_limits<MortonCode>::digits / Node::dimension);
         auto bin_count = size_t{ 1 } << (config_.log2_grid_dim * Node::dimension);
@@ -1893,11 +1784,9 @@ private:
         // Place primitives in bins
         auto final_bins = executor_.reduce(
           0, bboxes_.size(), LocalBins{},
-          [&](LocalBins& local_bins, size_t begin, size_t end)
-          {
+          [&](LocalBins& local_bins, size_t begin, size_t end) {
               local_bins.bins.resize(bin_count);
-              for (size_t i = begin; i < end; ++i)
-              {
+              for (size_t i = begin; i < end; ++i) {
                   auto p = robust_max(fast_mul_add(centers_[i], grid_scale, grid_offset), Vec(0));
                   auto x = std::min(grid_dim - 1, static_cast<size_t>(p[0]));
                   auto y = std::min(grid_dim - 1, static_cast<size_t>(p[1]));
@@ -1905,8 +1794,7 @@ private:
                   local_bins[morton_encode(x, y, z) & (bin_count - 1)].add(i);
               }
           },
-          [&](LocalBins& result, LocalBins&& other)
-          { result.merge(std::move(other)); });
+          [&](LocalBins& result, LocalBins&& other) { result.merge(std::move(other)); });
 
         // Note: Merging small bins will deteriorate the quality of the top BVH if there is no
         // pruning, since it will then produce larger mini-trees. For this reason, it is only enabled
@@ -1917,11 +1805,9 @@ private:
 
         // Iterate over bins to collect groups of primitives and build BVHs over them in parallel
         std::vector<Bvh<Node>> mini_trees(final_bins.bins.size());
-        for (size_t i = 0; i < final_bins.bins.size(); ++i)
-        {
+        for (size_t i = 0; i < final_bins.bins.size(); ++i) {
             auto task = new BuildTask(this, mini_trees[i], std::move(final_bins[i].ids));
-            executor_.thread_pool.push([task](size_t)
-                                       { task->run(); delete task; });
+            executor_.thread_pool.push([task](size_t) { task->run(); delete task; });
         }
         executor_.thread_pool.wait();
 
@@ -1940,21 +1826,17 @@ private:
         // Cull nodes whose area is above the threshold
         std::stack<size_t> stack;
         std::vector<std::pair<size_t, size_t>> pruned_roots;
-        for (size_t i = 0; i < mini_trees.size(); ++i)
-        {
+        for (size_t i = 0; i < mini_trees.size(); ++i) {
             stack.push(0);
             auto& mini_tree = mini_trees[i];
-            while (!stack.empty())
-            {
+            while (!stack.empty()) {
                 auto node_id = stack.top();
                 auto& node = mini_tree.nodes[node_id];
                 stack.pop();
-                if (node.get_bbox().get_half_area() < threshold || node.is_leaf())
-                {
+                if (node.get_bbox().get_half_area() < threshold || node.is_leaf()) {
                     pruned_roots.emplace_back(i, node_id);
                 }
-                else
-                {
+                else {
                     stack.push(node.index.first_id);
                     stack.push(node.index.first_id + 1);
                 }
@@ -1964,8 +1846,7 @@ private:
         // Extract the BVHs rooted at the previously computed indices
         std::vector<Bvh<Node>> pruned_trees(pruned_roots.size());
         executor_.for_each(0, pruned_roots.size(),
-                           [&](size_t begin, size_t end)
-                           {
+                           [&](size_t begin, size_t end) {
                                for (size_t i = begin; i < end; ++i)
                                    if (pruned_roots[i].second == 0)
                                        pruned_trees[i] = std::move(mini_trees[pruned_roots[i].first]);
@@ -1981,8 +1862,7 @@ private:
         // Build a BVH using the mini trees as leaves
         std::vector<Vec> centers(mini_trees.size());
         std::vector<BBox> bboxes(mini_trees.size());
-        for (size_t i = 0; i < mini_trees.size(); ++i)
-        {
+        for (size_t i = 0; i < mini_trees.size(); ++i) {
             bboxes[i] = mini_trees[i].get_root().get_bbox();
             centers[i] = bboxes[i].get_center();
         }
@@ -1996,8 +1876,7 @@ private:
         std::vector<size_t> prim_offsets(mini_trees.size());
         size_t node_count = bvh.nodes.size();
         size_t prim_count = 0;
-        for (size_t i = 0; i < mini_trees.size(); ++i)
-        {
+        for (size_t i = 0; i < mini_trees.size(); ++i) {
             node_offsets[i] = node_count - 1; // Skip root node
             prim_offsets[i] = prim_count;
             node_count += mini_trees[i].nodes.size() - 1; // idem
@@ -2005,16 +1884,14 @@ private:
         }
 
         // Helper function to copy and fix the child/primitive index of a node
-        auto copy_node = [&](size_t i, Node& dst_node, const Node& src_node)
-        {
+        auto copy_node = [&](size_t i, Node& dst_node, const Node& src_node) {
             dst_node = src_node;
             dst_node.index.first_id += static_cast<typename Node::Index::Type>(
               src_node.is_leaf() ? prim_offsets[i] : node_offsets[i]);
         };
 
         // Make the leaves of the top BVH point to the right internal nodes
-        for (auto& node : bvh.nodes)
-        {
+        for (auto& node : bvh.nodes) {
             if (!node.is_leaf())
                 continue;
             assert(node.index.prim_count == 1);
@@ -2025,10 +1902,8 @@ private:
         bvh.nodes.resize(node_count);
         bvh.prim_ids.resize(prim_count);
         executor_.for_each(0, mini_trees.size(),
-                           [&](size_t begin, size_t end)
-                           {
-                               for (size_t i = begin; i < end; ++i)
-                               {
+                           [&](size_t begin, size_t end) {
+                               for (size_t i = begin; i < end; ++i) {
                                    auto& mini_tree = mini_trees[i];
 
                                    // Copy the nodes of the mini tree with the offsets applied, without copying
@@ -2048,14 +1923,12 @@ private:
 };
 
 template<typename Node>
-class ReinsertionOptimizer
-{
+class ReinsertionOptimizer {
     using Scalar = typename Node::Scalar;
     using BBox = bvh::BBox<Scalar, Node::dimension>;
 
 public:
-    struct Config
-    {
+    struct Config {
         /// Fraction of the number of nodes to optimize per iteration.
         Scalar batch_size_ratio = static_cast<Scalar>(0.05);
 
@@ -2076,8 +1949,7 @@ public:
     }
 
 private:
-    struct Candidate
-    {
+    struct Candidate {
         size_t node_id = 0;
         Scalar cost = -std::numeric_limits<Scalar>::max();
 
@@ -2087,8 +1959,7 @@ private:
         }
     };
 
-    struct Reinsertion
-    {
+    struct Reinsertion {
         size_t from = 0;
         size_t to = 0;
         Scalar area_diff = static_cast<Scalar>(0);
@@ -2120,13 +1991,10 @@ private:
         std::vector<size_t> parents(bvh.nodes.size());
         parents[0] = 0;
         executor.for_each(0, bvh.nodes.size(),
-                          [&](size_t begin, size_t end)
-                          {
-                              for (size_t i = begin; i < end; ++i)
-                              {
+                          [&](size_t begin, size_t end) {
+                              for (size_t i = begin; i < end; ++i) {
                                   auto& node = bvh.nodes[i];
-                                  if (!node.is_leaf())
-                                  {
+                                  if (!node.is_leaf()) {
                                       parents[node.index.first_id + 0] = i;
                                       parents[node.index.first_id + 1] = i;
                                   }
@@ -2144,11 +2012,9 @@ private:
         for (size_t i = 1; i < node_count; ++i)
             candidates.push_back(Candidate{ i, bvh_.nodes[i].get_bbox().get_half_area() });
         std::make_heap(candidates.begin(), candidates.end(), std::greater<>{});
-        for (size_t i = node_count; i < bvh_.nodes.size(); ++i)
-        {
+        for (size_t i = node_count; i < bvh_.nodes.size(); ++i) {
             auto cost = bvh_.nodes[i].get_bbox().get_half_area();
-            if (candidates.front().cost < cost)
-            {
+            if (candidates.front().cost < cost) {
                 std::pop_heap(candidates.begin(), candidates.end(), std::greater<>{});
                 candidates.back() = Candidate{ i, cost };
                 std::push_heap(candidates.begin(), candidates.end(), std::greater<>{});
@@ -2203,8 +2069,7 @@ private:
         do {
             // Try to find a reinsertion in the sibling at the current level of the tree
             stack.emplace_back(area_diff, sibling_id);
-            while (!stack.empty())
-            {
+            while (!stack.empty()) {
                 auto top = stack.back();
                 stack.pop_back();
                 if (top.first - node_area <= best_reinsertion.area_diff)
@@ -2213,14 +2078,12 @@ private:
                 auto& dst_node = bvh_.nodes[top.second];
                 auto merged_area = dst_node.get_bbox().extend(bvh_.nodes[node_id].get_bbox()).get_half_area();
                 auto reinsert_area = top.first - merged_area;
-                if (reinsert_area > best_reinsertion.area_diff)
-                {
+                if (reinsert_area > best_reinsertion.area_diff) {
                     best_reinsertion.to = top.second;
                     best_reinsertion.area_diff = reinsert_area;
                 }
 
-                if (!dst_node.is_leaf())
-                {
+                if (!dst_node.is_leaf()) {
                     auto child_area = reinsert_area + dst_node.get_bbox().get_half_area();
                     stack.emplace_back(child_area, dst_node.index.first_id + 0);
                     stack.emplace_back(child_area, dst_node.index.first_id + 1);
@@ -2229,8 +2092,7 @@ private:
 
             // Compute the bounding box on the path from the node to the root, and record the
             // corresponding decrease in area.
-            if (pivot_id != parent_id)
-            {
+            if (pivot_id != parent_id) {
                 pivot_bbox.extend(bvh_.nodes[sibling_id].get_bbox());
                 area_diff += bvh_.nodes[pivot_id].get_bbox().get_half_area() - pivot_bbox.get_half_area();
             }
@@ -2256,13 +2118,11 @@ private:
         bvh_.nodes[sibling_id] = dst_node;
         bvh_.nodes[parent_id] = sibling_node;
 
-        if (!dst_node.is_leaf())
-        {
+        if (!dst_node.is_leaf()) {
             parents_[dst_node.index.first_id + 0] = sibling_id;
             parents_[dst_node.index.first_id + 1] = sibling_id;
         }
-        if (!sibling_node.is_leaf())
-        {
+        if (!sibling_node.is_leaf()) {
             parents_[sibling_node.index.first_id + 0] = parent_id;
             parents_[sibling_node.index.first_id + 1] = parent_id;
         }
@@ -2303,30 +2163,25 @@ private:
         std::vector<Reinsertion> reinsertions;
         std::vector<bool> touched(bvh_.nodes.size());
 
-        for (size_t iter = 0; iter < config.max_iter_count; ++iter)
-        {
+        for (size_t iter = 0; iter < config.max_iter_count; ++iter) {
             auto candidates = find_candidates(batch_size);
 
             std::fill(touched.begin(), touched.end(), false);
             reinsertions.resize(candidates.size());
             executor.for_each(0, candidates.size(),
-                              [&](size_t begin, size_t end)
-                              {
+                              [&](size_t begin, size_t end) {
                                   for (size_t i = begin; i < end; ++i)
                                       reinsertions[i] = find_reinsertion(candidates[i].node_id);
                               });
 
             reinsertions.erase(std::remove_if(reinsertions.begin(), reinsertions.end(),
-                                              [](auto& r)
-                                              { return r.area_diff <= 0; }),
+                                              [](auto& r) { return r.area_diff <= 0; }),
                                reinsertions.end());
             std::sort(reinsertions.begin(), reinsertions.end(), std::greater<>{});
 
-            for (auto& reinsertion : reinsertions)
-            {
+            for (auto& reinsertion : reinsertions) {
                 auto conflicts = get_conflicts(reinsertion.from, reinsertion.to);
-                if (std::any_of(conflicts.begin(), conflicts.end(), [&](size_t i)
-                                { return touched[i]; }))
+                if (std::any_of(conflicts.begin(), conflicts.end(), [&](size_t i) { return touched[i]; }))
                     continue;
                 for (auto conflict : conflicts)
                     touched[conflict] = true;
@@ -2339,22 +2194,19 @@ private:
 /// This builder is only a wrapper around all the other builders, which selects the best builder
 /// depending on the desired BVH quality and whether a multi-threaded build is desired.
 template<typename Node>
-class DefaultBuilder
-{
+class DefaultBuilder {
     using Scalar = typename Node::Scalar;
     using Vec = bvh::Vec<Scalar, Node::dimension>;
     using BBox = bvh::BBox<Scalar, Node::dimension>;
 
 public:
-    enum class Quality
-    {
+    enum class Quality {
         Low,
         Medium,
         High
     };
 
-    struct Config : TopDownSahBuilder<Node>::Config
-    {
+    struct Config : TopDownSahBuilder<Node>::Config {
         /// The quality of the BVH produced by the builder. The higher the quality the faster the
         /// BVH is to traverse, but the slower it is to build.
         Quality quality = Quality::High;
@@ -2387,8 +2239,7 @@ public:
     {
         if (config.quality == Quality::Low)
             return BinnedSahBuilder<Node>::build(bboxes, centers, config);
-        else
-        {
+        else {
             auto bvh = SweepSahBuilder<Node>::build(bboxes, centers, config);
             if (config.quality == Quality::High)
                 ReinsertionOptimizer<Node>::optimize(bvh);

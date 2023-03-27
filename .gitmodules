@@ -16,3 +16,6 @@
 [submodule "math"]
 	path = math
 	url = https://github.com/robin-lind/lucmath.git
+[submodule "tinygltf"]
+	path = tinygltf
+	url = https://github.com/syoyo/tinygltf.git

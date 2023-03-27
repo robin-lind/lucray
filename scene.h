@@ -1,8 +1,6 @@
-// ray.h
-
 // MIT License
 //
-// Copyright (c) 2022 Robin Lind
+// Copyright (c) 2023 Robin Lind
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,20 +20,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef LUC_RAY_H
-#define LUC_RAY_H
+#ifndef SCENE_H
+#define SCENE_H
 
+#include <optional>
+#include "math/bounds.h"
+#include "math/math.h"
+#include "filesystem.h"
+#include "math/matrix.h"
 #include "math/vector.h"
+#include "model.h"
+#include "bvh.h"
 
-struct Ray {
-    Ray() :
-      Ray({}, {}) {}
+namespace luc {
+struct scene {
+    struct intersection {
+    };
 
-    Ray(math::Vector3 o, math::Vector3 d) :
-      O(o), D(d) {}
+    struct subscene {
+        model::material material;
+        math::affinef transform;
+        math::float3 center;
+        math::bounds3 bounds;
+        std::vector<bvh::PrecomputedTri<float>> triangles;
+        bvh::Bvh<bvh::Node<float, 3>> accelerator;
+        std::optional<scene::intersection> intersect(const math::float3& org, const math::float3& dir);
+    };
 
-    math::Vector3 O{};
-    math::Vector3 D{};
+    std::vector<subscene> scenes;
+    bvh::Bvh<bvh::Node<float, 3>> accelerator;
+
+    void append_model(luc::model&& model);
+    void commit();
+    std::optional<intersection> intersect(const math::float3& org, const math::float3& dir);
 };
+} // namespace luc
 
-#endif /* LUC_RAY_H */
+#endif

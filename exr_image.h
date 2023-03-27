@@ -32,16 +32,14 @@ void save_exr()
 
     header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
     header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-    for (int i = 0; i < header.num_channels; i++)
-    {
+    for (int i = 0; i < header.num_channels; i++) {
         header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT;          // pixel type of input image
         header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
     }
 
     const char *err = nullptr; // or nullptr in C++11 or later.
     const int ret = SaveEXRImageToFile(&image, &header, file_name.c_str(), &err);
-    if (ret != TINYEXR_SUCCESS)
-    {
+    if (ret != TINYEXR_SUCCESS) {
         FreeEXRErrorMessage(err); // free's buffer for an error message
         return ret;
     }

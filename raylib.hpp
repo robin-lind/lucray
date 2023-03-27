@@ -1,7 +1,6 @@
 #pragma once
 
-namespace raylib
-{
+namespace raylib {
 #include <raylib.h>
 #include <rlgl.h>
 #undef LIGHTGRAY

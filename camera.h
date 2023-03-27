@@ -3,8 +3,7 @@
 #include <utility>
 
 template<typename TFloat = float>
-struct ray_camera
-{
+struct ray_camera {
     math::vector_tn<TFloat, 3> pos;
     math::vector_tn<TFloat, 3> X, Y, Z;
     float inv_aspect;

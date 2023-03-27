@@ -3,8 +3,7 @@
 #include "math/vector.h"
 
 template<typename T>
-struct animated
-{
+struct animated {
     T t0, t1;
     animated() = default;
 
