@@ -21,11 +21,11 @@
 // SOFTWARE.
 
 #include "filesystem.h"
+#include "model.h"
 #include "math/matrix.h"
 #include "math/vector.h"
 #include "math/bounds.h"
 #include "aixlog.hpp"
-#include "model.h"
 #include "tinygltf/tiny_gltf.h"
 #include <cstdint>
 #include <vector>
@@ -335,13 +335,17 @@ luc::model load_gltf(std::filesystem::path& path)
         else {
             LOG(ERROR) << "unknown instance type\n";
         }
-        if (!gnode.translation.empty())
-            instance.transform.translation = math::float3(gnode.translation[0], gnode.translation[1], gnode.translation[2]);
-        if (!gnode.scale.empty())
-            instance.transform.transform = math::scale(math::float3(gnode.scale[0], gnode.scale[1], gnode.scale[2]));
+        if (!gnode.translation.empty()) {
+            const auto translation = math::translation<float,4,4>(math::float3(gnode.translation[0], gnode.translation[1], gnode.translation[2]));
+            instance.transform = math::mul(instance.transform, translation);
+        }
+        if (!gnode.scale.empty()) {
+            const auto scale = math::scale<float,4,4>(math::float3(gnode.scale[0], gnode.scale[1], gnode.scale[2]));
+            instance.transform = math::mul(instance.transform, scale);
+        }
         if (!gnode.rotation.empty()) {
             const auto rot = math::quat_to_matrix(math::float4(gnode.rotation[0], gnode.rotation[1], gnode.rotation[2], gnode.rotation[3]));
-            instance.transform.transform = math::mul(instance.transform.transform, rot);
+            instance.transform = math::mul(instance.transform, rot);
         }
         model.instances.push_back(instance);
     }

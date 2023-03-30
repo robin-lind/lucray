@@ -38,9 +38,9 @@
 #include <filesystem>
 #include <vector>
 #include "argh/argh.h"
+#include "math/math.h"
 #include "raylib.hpp"
 #include "aixlog.hpp"
-#include "math/vector.h"
 #include "camera.h"
 #include "load_model.h"
 #include "framebuffer.h"
