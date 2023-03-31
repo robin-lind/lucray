@@ -36,7 +36,7 @@ void scene::append_model(luc::model&& model)
             continue;
         for (const auto& submesh : model.meshes[minst.id].meshes) {
             subscene sscene;
-            sscene.transform = minst.transform;
+            sscene.transform = math::inverse(minst.transform);
             sscene.material = model.materials[submesh.material];
             auto get_bvh_vec = [&](const math::float3 v) {
                 return *(bvh::Vec<float, 3> *)(&v);
@@ -175,11 +175,8 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
         const auto& sub_acc = sub_scene.accelerator;
         const auto& sub_tris = sub_scene.triangles;
 
-        const auto tra = sub_scene.transform;
-        // const math::affinef inv(math::inverse(sub_scene.transform.transform), sub_scene.transform.translation);
-        const auto inv = math::inverse(sub_scene.transform);
         math::float3 _org, _dir;
-        std::tie(_org, _dir) = math::transform_ray(inv, org, dir);
+        std::tie(_org, _dir) = math::transform_ray(sub_scene.transform, org, dir);
         bvh::Ray<float, 3> _ray(*(bvh::Vec<float, 3> *)(&_org), *(bvh::Vec<float, 3> *)(&_dir));
         math::float3 n;
         float tmax = std::numeric_limits<float>::max();
