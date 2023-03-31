@@ -30,7 +30,6 @@ namespace luc {
 
 namespace inner {
 luc::model load_obj(std::filesystem::path& path);
-luc::model load_gltf(std::filesystem::path& path);
 } // namespace inner
 
 luc::model load_file(std::filesystem::path path);

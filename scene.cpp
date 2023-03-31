@@ -44,9 +44,6 @@ void scene::append_model(luc::model&& model)
             auto get_float3 = [&](const bvh::Vec<float, 3> v) {
                 return *(math::float3 *)(&v);
             };
-            auto get_tri = [&](size_t i) {
-                return;
-            };
             const auto triangle_count = submesh.indices.size() / 3;
             math::double3 centerd;
             std::vector<bvh::BBox<float, 3>> bboxes(triangle_count);

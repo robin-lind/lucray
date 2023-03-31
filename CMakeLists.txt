@@ -13,6 +13,7 @@ main.cpp
 implementation.cpp
 filesystem.cpp
 scene.cpp
+gltf.cpp
 ${EXTERN_SRC_LIST}
 )
 
