@@ -45,7 +45,7 @@ struct triangle {
 
     struct intersection {
         math::vector<T, 2> uv;
-        T distance;
+        T distance = std::numeric_limits<T>::max();
     };
 
     std::optional<intersection> intersect(const math::vector<T, 3>& org, const math::vector<T, 3>& dir) const;
@@ -66,7 +66,7 @@ struct scene {
         struct intersection {
             math::float3 position;
             math::float3 normal;
-            float distance;
+            float distance = std::numeric_limits<float>::max();
         };
         std::optional<intersection> intersect(const math::float3& org, const math::float3& dir) const;
     };

@@ -144,17 +144,17 @@ std::optional<typename triangle<T>::intersection> triangle<T>::intersect(const m
     constexpr auto tolerance = -std::numeric_limits<T>::epsilon();
     constexpr auto tmin = std::numeric_limits<T>::epsilon();
     constexpr auto tmax = std::numeric_limits<T>::max();
-        const auto c = p0 - org;
-        const auto r = math::cross(dir, c);
+    const auto c = p0 - org;
+    const auto r = math::cross(dir, c);
     const auto inv_det = static_cast<T>(1.) / math::dot(n, dir);
-        const auto u = math::dot(r, e2) * inv_det;
-        const auto v = math::dot(r, e1) * inv_det;
+    const auto u = math::dot(r, e2) * inv_det;
+    const auto v = math::dot(r, e1) * inv_det;
     const auto w = static_cast<T>(1.) - u - v;
-        if (u < tolerance || v < tolerance || w < tolerance)
-            return std::nullopt;
-        const auto t = math::dot(n, c) * inv_det;
-        if (t < tmin || t > tmax)
-            return std::nullopt;
+    if (u < tolerance || v < tolerance || w < tolerance)
+        return std::nullopt;
+    const auto t = math::dot(n, c) * inv_det;
+    if (t < tmin || t > tmax)
+        return std::nullopt;
     triangle::intersection inter;
     inter.uv = { u, v };
     inter.distance = t;
@@ -163,68 +163,64 @@ std::optional<typename triangle<T>::intersection> triangle<T>::intersect(const m
 
 std::optional<scene::subscene::intersection> scene::subscene::intersect(const math::float3& org, const math::float3& dir) const
 {
-    static constexpr size_t stack_size = 64;
-        static constexpr size_t invalid_id = std::numeric_limits<size_t>::max();
     math::float3 _org, _dir;
     std::tie(_org, _dir) = math::transform_ray(transform, org, dir);
-
-        auto prim_id = invalid_id;
-    triangle<float>::intersection t_inter;
-    t_inter.distance = std::numeric_limits<float>::max();
-        auto leaf_test = [&](size_t begin, size_t end) {
-            for (size_t i = begin; i < end; ++i) {
+    static constexpr size_t stack_size = 64;
+    static constexpr size_t invalid_id = std::numeric_limits<size_t>::max();
+    auto prim_id = invalid_id;
+    triangle<float>::intersection inter;
+    auto leaf_test = [&](size_t begin, size_t end) {
+        for (size_t i = begin; i < end; ++i) {
             if (const auto hit = triangles[i].intersect(_org, _dir)) {
-                if (hit->distance < t_inter.distance) {
-                    t_inter = *hit;
-                        prim_id = i;
-                    }
+                if (hit->distance < inter.distance) {
+                    inter = *hit;
+                    prim_id = i;
                 }
             }
-            return prim_id != invalid_id;
-        };
+        }
+        return false;
+    };
     bvh::Ray<float, 3> _ray(*(bvh::Vec<float, 3> *)(&_org), *(bvh::Vec<float, 3> *)(&_dir));
-        bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
+    bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
     accelerator.template intersect<false, true>(_ray, accelerator.get_root().index, stack, leaf_test);
 
     if (prim_id != invalid_id) {
-        scene::subscene::intersection inter;
+        scene::subscene::intersection result;
         const auto& tri = triangles[prim_id];
-        const auto pbarycentric = tri.p0 - tri.e1 * t_inter.uv.u + tri.e2 * t_inter.uv.v;
-        inter.position = pbarycentric;
-        inter.normal = math::normalize(tri.n);
-        inter.distance = t_inter.distance;
-        return inter;
-        }
+        const auto pbarycentric = tri.p0 - tri.e1 * inter.uv.u + tri.e2 * inter.uv.v;
+        result.position = pbarycentric;
+        result.normal = math::normalize(tri.n);
+        result.distance = inter.distance;
+        return result;
+    }
     return std::nullopt;
 }
 
 std::optional<scene::intersection> scene::intersect(const math::float3& org, const math::float3& dir) const
 {
     static constexpr size_t stack_size = 64;
-    subscene::intersection s_inter;
-    s_inter.distance = std::numeric_limits<float>::max();
-    bool outer_hit = false;
-    auto leaf_test_bbox = [&](size_t begin, size_t end) {
-        bool inner_hit = false;
+    static constexpr size_t invalid_id = std::numeric_limits<size_t>::max();
+    auto prim_id = invalid_id;
+    subscene::intersection inter;
+    auto leaf_test = [&](size_t begin, size_t end) {
         for (size_t i = begin; i < end; ++i) {
             if (const auto hit = scenes[i].intersect(org, dir)) {
-                inner_hit = true;
-                if (hit->distance < s_inter.distance) {
-                    s_inter = *hit;
-                outer_hit = true;
+                if (hit->distance < inter.distance) {
+                    inter = *hit;
+                    prim_id = i;
+                }
             }
         }
-        }
-        return inner_hit;
+        return false;
     };
     bvh::Ray<float, 3> ray(*(bvh::Vec<float, 3> *)(&org), *(bvh::Vec<float, 3> *)(&dir));
     bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
-    accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test_bbox);
+    accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test);
 
-    if (outer_hit) {
-        scene::intersection inter;
-        inter.color = s_inter.position;
-        return inter;
+    if (prim_id != invalid_id) {
+        scene::intersection result;
+        result.color = inter.position;
+        return result;
     }
     return std::nullopt;
 }
