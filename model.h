@@ -69,7 +69,7 @@ struct model {
     };
 
     struct instance {
-        math::affinef transform;
+        math::matrix4 transform;
         instance_type type;
         int id;
     };

@@ -39,7 +39,7 @@ struct traversal {
                           });
     }
 
-    bool traverse(const math::vector_tn<TFloat, 3>& org, const math::vector_tn<TFloat, 3>& dir) const
+    bool traverse(const math::vector<TFloat, 3>& org, const math::vector<TFloat, 3>& dir) const
     {
         bvh::Ray<TFloat, 3> ray(
           *(bvh::Vec<TFloat, 3> *)(&org),

@@ -336,7 +336,7 @@ luc::model load_gltf(std::filesystem::path& path)
             LOG(ERROR) << "unknown instance type\n";
         }
         if (!gnode.translation.empty()) {
-            const auto translation = math::translation<float,4,4>(math::float3(gnode.translation[0], gnode.translation[1], gnode.translation[2]));
+            const auto translation = math::translation(math::float3(gnode.translation[0], gnode.translation[1], gnode.translation[2]));
             instance.transform = math::mul(instance.transform, translation);
         }
         if (!gnode.scale.empty()) {

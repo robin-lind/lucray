@@ -22,7 +22,9 @@
 
 #include "scene.h"
 #include "aixlog.hpp"
-#include "math/vector.h"
+#include "math/math.h"
+#include <optional>
+#include <utility>
 
 namespace luc {
 void scene::append_model(luc::model&& model)
@@ -119,44 +121,122 @@ void scene::commit()
                       });
 }
 
+// BVH_ALWAYS_INLINE Tri<T, 3> convert_to_tri() const
+// {
+//     return Tri<T, 3>(p0, p0 - e1, e2 + p0);
+// }
+// BVH_ALWAYS_INLINE BBox<T, 3> get_bbox() const
+// {
+//     return convert_to_tri().get_bbox();
+// }
+// BVH_ALWAYS_INLINE Vec<T, 3> get_center() const
+// {
+//     return convert_to_tri().get_center();
+// }
+// BVH_ALWAYS_INLINE BBox<T, 3> get_bbox() const
+// {
+//     return BBox(p0).extend(p1).extend(p2);
+// }
+// BVH_ALWAYS_INLINE Vec<T, 3> get_center() const
+// {
+//     return (p0 + p1 + p2) * static_cast<T>(1. / 3.);
+// }
+
 std::optional<scene::intersection> scene::intersect(const math::float3& org, const math::float3& dir)
 {
-    static constexpr size_t invalid_id = std::numeric_limits<size_t>::max();
     static constexpr size_t stack_size = 64;
-
-    auto prim_id = invalid_id;
-    auto bbox_intersect = [&](size_t i) {
-        return true;
-    };
-    auto leaf_test_bbox = [&](size_t begin, size_t end) {
-        for (size_t i = begin; i < end; ++i)
-            if (bbox_intersect(i))
-                prim_id = i;
-        return prim_id != invalid_id;
+    auto intersect_tri = [&](const math::float3& org, const math::float3& dir, const bvh::PrecomputedTri<float>& tri, float tmax) -> std::optional<std::tuple<float, float, float>> {
+        // const Vec<T, 3>& p0, const Vec<T, 3>& p1, const Vec<T, 3>& p2
+        // p0(p0), e1(p0 - p1), e2(p2 - p0), n(cross(e1, e2))
+        const math::float3 p0(tri.p0.values), e1(tri.e1.values), e2(tri.e2.values), n(tri.n.values);
+        const float tolerance = -std::numeric_limits<float>::epsilon();
+        const float tmin = std::numeric_limits<float>::epsilon();
+        const auto c = p0 - org;
+        const auto r = math::cross(dir, c);
+        const auto inv_det = static_cast<float>(1.) / math::dot(n, dir);
+        const auto u = math::dot(r, e2) * inv_det;
+        const auto v = math::dot(r, e1) * inv_det;
+        const auto w = static_cast<float>(1.) - u - v;
+        if (u < tolerance || v < tolerance || w < tolerance)
+            return std::nullopt;
+        const auto t = math::dot(n, c) * inv_det;
+        if (t < tmin || t > tmax)
+            return std::nullopt;
+        return std::make_tuple(u, v, t);
     };
     bvh::Ray<float, 3> ray(*(bvh::Vec<float, 3> *)(&org), *(bvh::Vec<float, 3> *)(&dir));
-    bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
-    accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test_bbox);
-    stack.size = 0; // make sure stack is cleared
+    intersection inter;
+    float outer_tmax = std::numeric_limits<float>::max();
+    auto intersect_sub = [&](size_t i) {
+        static constexpr size_t invalid_id = std::numeric_limits<size_t>::max();
+        auto prim_id = invalid_id;
 
-    if (prim_id == invalid_id)
-        return std::nullopt; // mission failed
+        const auto& sub_scene = scenes[i];
+        const auto& sub_acc = sub_scene.accelerator;
+        const auto& sub_tris = sub_scene.triangles;
 
-    // intersect against triangles in the subscene
-    prim_id = invalid_id;
-    float u, v;
+        const auto tra = sub_scene.transform;
+        // const math::affinef inv(math::inverse(sub_scene.transform.transform), sub_scene.transform.translation);
+        const auto inv = math::inverse(sub_scene.transform);
+        math::float3 _org, _dir;
+        std::tie(_org, _dir) = math::transform_ray(inv, org, dir);
+        bvh::Ray<float, 3> _ray(*(bvh::Vec<float, 3> *)(&_org), *(bvh::Vec<float, 3> *)(&_dir));
+        math::float3 n;
+        float tmax = std::numeric_limits<float>::max();
+        auto leaf_test = [&](size_t begin, size_t end) {
+            for (size_t i = begin; i < end; ++i) {
+                if (auto hit = intersect_tri(_org, _dir, sub_tris[i], tmax)) {
+                    float u, v, t;
+                    std::tie(u, v, t) = *hit;
+                    if (t < tmax) {
+                        tmax = t;
+                        prim_id = i;
+                        n.E = sub_tris[i].n.values;
+                    }
+                }
+            }
+            return prim_id != invalid_id;
+        };
+#if 1
+        bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
+        sub_acc.template intersect<false, true>(_ray, sub_acc.get_root().index, stack, leaf_test);
 
-    auto leaf_test_tri = [&](size_t begin, size_t end) {
-        for (size_t i = begin; i < end; ++i) {
-            // if (auto hit = ptriangles[i].intersect(ray)) {
-            //     prim_id = i;
-            //     std::tie(u, v) = *hit;
-            // }
+        if (tmax < outer_tmax)
+        {
+            outer_tmax = tmax;
+            inter.color = sub_scene.material.albedo.c * std::abs(math::dot(_dir, math::normalize(n)));
         }
         return prim_id != invalid_id;
+#else
+        const bool ehm = leaf_test(0, sub_tris.size());
+        if (tmax < outer_tmax) {
+            outer_tmax = tmax;
+            inter.color = sub_scene.material.albedo.c;
+            return true;
+        }
+        return false;
+#endif
+        // return leaf_test(0, sub_tris.size());
     };
-    accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test_tri);
+    bool outer_hit = false;
+    auto leaf_test_bbox = [&](size_t begin, size_t end) {
+        bool hit = false;
+        for (size_t i = begin; i < end; ++i) {
+            if (intersect_sub(i)) {
+                hit = true;
+                outer_hit = true;
+            }
+        }
+        return hit;
+    };
+    // bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
+    // accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test_bbox);
+    // outer_hit = outer_hit || leaf_test_bbox(0, scenes.size());
 
+    leaf_test_bbox(0, scenes.size());
+
+    if (outer_hit)
+        return inter;
     return std::nullopt;
 }
 } // namespace luc

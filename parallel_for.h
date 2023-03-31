@@ -118,10 +118,10 @@ void iterate_over_tile(const work_block<TSize>& block, const abort_token& aborte
             const auto miny = math::map<TFloat>(y, block.domain.miny, block.domain.maxy, 0, 1) - TFloat(.5);
             const auto maxx = math::map<TFloat>(x + TFloat(1.), block.domain.minx, block.domain.maxx, 0, 1) - TFloat(.5);
             const auto maxy = math::map<TFloat>(y + TFloat(1.), block.domain.miny, block.domain.maxy, 0, 1) - TFloat(.5);
-            auto transform = [minx, miny, maxx, maxy](math::vector_tn<TFloat, 2> uv) {
+            auto transform = [minx, miny, maxx, maxy](math::vector<TFloat, 2> uv) {
                 const auto su = math::map<TFloat>(uv.u, -.5f, .5f, minx, maxx);
                 const auto sv = math::map<TFloat>(uv.v, -.5f, .5f, miny, maxy);
-                return math::vector_tn<TFloat, 2>(su, sv);
+                return math::vector<TFloat, 2>(su, sv);
             };
             item_func(x, y, transform);
         }

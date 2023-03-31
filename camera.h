@@ -4,12 +4,12 @@
 
 template<typename TFloat = float>
 struct ray_camera {
-    math::vector_tn<TFloat, 3> pos;
-    math::vector_tn<TFloat, 3> X, Y, Z;
+    math::vector<TFloat, 3> pos;
+    math::vector<TFloat, 3> X, Y, Z;
     float inv_aspect;
     float backfocus;
 
-    ray_camera(int width, int height, math::vector_tn<TFloat, 3> eye, math::vector_tn<TFloat, 3> target, math::vector_tn<TFloat, 3> up, float fov)
+    ray_camera(int width, int height, math::vector<TFloat, 3> eye, math::vector<TFloat, 3> target, math::vector<TFloat, 3> up, float fov)
     {
         pos = eye;
         Z = math::normalize(target - eye);
@@ -19,9 +19,9 @@ struct ray_camera {
         backfocus = .5f / std::tan(fov * .5f * 3.14159f / 180.f);
     }
 
-    std::pair<math::vector_tn<TFloat, 3>, math::vector_tn<TFloat, 3>> ray(math::vector_tn<TFloat, 2> uv) const
+    std::pair<math::vector<TFloat, 3>, math::vector<TFloat, 3>> ray(math::vector<TFloat, 2> uv) const
     {
-        const auto image_plane = math::normalize(math::vector_tn<TFloat, 3>(uv.u, uv.v * inv_aspect, backfocus));
+        const auto image_plane = math::normalize(math::vector<TFloat, 3>(uv.u, uv.v * inv_aspect, backfocus));
         const auto dir = (X * image_plane.x) + (Y * image_plane.y) + (Z * image_plane.z);
         return std::make_pair(pos, dir);
     }

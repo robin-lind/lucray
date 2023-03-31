@@ -35,11 +35,12 @@
 namespace luc {
 struct scene {
     struct intersection {
+        math::float3 color;
     };
 
     struct subscene {
         model::material material;
-        math::affinef transform;
+        math::matrix4 transform;
         math::float3 center;
         math::bounds3 bounds;
         std::vector<bvh::PrecomputedTri<float>> triangles;
