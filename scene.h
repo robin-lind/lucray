@@ -33,6 +33,24 @@
 #include "bvh.h"
 
 namespace luc {
+
+template<typename T>
+struct triangle {
+    math::vector<T, 3> p0, e1, e2, n;
+
+    triangle() = default;
+
+    triangle(const math::vector<T, 3>& p0, const math::vector<T, 3>& p1, const math::vector<T, 3>& p2) :
+      p0(p0), e1(p0 - p1), e2(p2 - p0), n(math::cross(e1, e2)) {}
+
+    struct intersection {
+        math::vector<T, 2> uv;
+        T distance;
+    };
+
+    std::optional<intersection> intersect(const math::vector<T, 3>& org, const math::vector<T, 3>& dir) const;
+};
+
 struct scene {
     struct intersection {
         math::float3 color;
@@ -43,9 +61,14 @@ struct scene {
         math::matrix4 transform;
         math::float3 center;
         math::bounds3 bounds;
-        std::vector<bvh::PrecomputedTri<float>> triangles;
+        std::vector<triangle<float>> triangles;
         bvh::Bvh<bvh::Node<float, 3>> accelerator;
-        std::optional<scene::intersection> intersect(const math::float3& org, const math::float3& dir);
+        struct intersection {
+            math::float3 position;
+            math::float3 normal;
+            float distance;
+        };
+        std::optional<intersection> intersect(const math::float3& org, const math::float3& dir) const;
     };
 
     std::vector<subscene> scenes;
@@ -53,7 +76,7 @@ struct scene {
 
     void append_model(luc::model&& model);
     void commit();
-    std::optional<intersection> intersect(const math::float3& org, const math::float3& dir);
+    std::optional<intersection> intersect(const math::float3& org, const math::float3& dir) const;
 };
 } // namespace luc
 

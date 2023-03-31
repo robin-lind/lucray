@@ -45,13 +45,7 @@ void scene::append_model(luc::model&& model)
                 return *(math::float3 *)(&v);
             };
             auto get_tri = [&](size_t i) {
-                const auto& t0 = submesh.indices[i * 3 + 0];
-                const auto& t1 = submesh.indices[i * 3 + 1];
-                const auto& t2 = submesh.indices[i * 3 + 2];
-                const auto v0 = get_bvh_vec(submesh.vertices[t0]);
-                const auto v1 = get_bvh_vec(submesh.vertices[t1]);
-                const auto v2 = get_bvh_vec(submesh.vertices[t2]);
-                return bvh::Tri<float, 3>(v0, v1, v2);
+                return;
             };
             const auto triangle_count = submesh.indices.size() / 3;
             math::double3 centerd;
@@ -60,7 +54,13 @@ void scene::append_model(luc::model&& model)
             executor.for_each(0, triangle_count,
                               [&](size_t begin, size_t end) {
                                   for (size_t i = begin; i < end; ++i) {
-                                      const auto tri = get_tri(i);
+                                      const auto& t0 = submesh.indices[i * 3 + 0];
+                                      const auto& t1 = submesh.indices[i * 3 + 1];
+                                      const auto& t2 = submesh.indices[i * 3 + 2];
+                                      const auto v0 = get_bvh_vec(submesh.vertices[t0]);
+                                      const auto v1 = get_bvh_vec(submesh.vertices[t1]);
+                                      const auto v2 = get_bvh_vec(submesh.vertices[t2]);
+                                      const bvh::Tri<float, 3> tri(v0, v1, v2);
                                       const auto cc = tri.get_center();
                                       const auto bb = tri.get_bbox();
                                       centers[i] = cc;
@@ -80,10 +80,17 @@ void scene::append_model(luc::model&& model)
             sscene.triangles.resize(triangle_count);
             executor.for_each(0, triangle_count,
                               [&](size_t begin, size_t end) {
-                                  for (size_t i = begin; i < end; ++i)
-                                      sscene.triangles[i] = get_tri(sscene.accelerator.prim_ids[i]);
+                                  for (size_t i = begin; i < end; ++i) {
+                                      const auto id = sscene.accelerator.prim_ids[i];
+                                      const auto& t0 = submesh.indices[id * 3 + 0];
+                                      const auto& t1 = submesh.indices[id * 3 + 1];
+                                      const auto& t2 = submesh.indices[id * 3 + 2];
+                                      const auto v0 = submesh.vertices[t0];
+                                      const auto v1 = submesh.vertices[t1];
+                                      const auto v2 = submesh.vertices[t2];
+                                      sscene.triangles[i] = triangle<float>(v0, v1, v2);
+                                  }
                               });
-
             scenes.push_back(std::move(sscene));
         }
     }
@@ -104,7 +111,7 @@ void scene::commit()
                               math::bounds3 tbox;
                               math::double3 tcenter;
                               for (const auto& ptri : scene.triangles) {
-                                  const math::float3 p0(ptri.p0.values), e1(ptri.e1.values), e2(ptri.e2.values), p1 = p0 + e1, p2 = p0 + e2;
+                                  const auto p0 = ptri.p0, p1 = p0 - ptri.e1, p2 = p0 + ptri.e2;
                                   const auto t0 = math::mul(scene.transform, math::float4(p0, 1.f)).xyz;
                                   const auto t1 = math::mul(scene.transform, math::float4(p1, 1.f)).xyz;
                                   const auto t2 = math::mul(scene.transform, math::float4(p2, 1.f)).xyz;
@@ -134,84 +141,94 @@ void scene::commit()
                       });
 }
 
-std::optional<scene::intersection> scene::intersect(const math::float3& org, const math::float3& dir)
+template<typename T>
+std::optional<typename triangle<T>::intersection> triangle<T>::intersect(const math::vector<T, 3>& org, const math::vector<T, 3>& dir) const
 {
-    static constexpr size_t stack_size = 64;
-    auto intersect_tri = [&](const math::float3& org, const math::float3& dir, const bvh::PrecomputedTri<float>& tri, float tmax) -> std::optional<std::tuple<float, float, float>> {
-        // const Vec<T, 3>& p0, const Vec<T, 3>& p1, const Vec<T, 3>& p2
-        // p0(p0), e1(p0 - p1), e2(p2 - p0), n(cross(e1, e2))
-        const math::float3 p0(tri.p0.values), e1(tri.e1.values), e2(tri.e2.values), n(tri.n.values);
-        const float tolerance = -std::numeric_limits<float>::epsilon();
-        const float tmin = std::numeric_limits<float>::epsilon();
+    constexpr auto tolerance = -std::numeric_limits<T>::epsilon();
+    constexpr auto tmin = std::numeric_limits<T>::epsilon();
+    constexpr auto tmax = std::numeric_limits<T>::max();
         const auto c = p0 - org;
         const auto r = math::cross(dir, c);
-        const auto inv_det = static_cast<float>(1.) / math::dot(n, dir);
+    const auto inv_det = static_cast<T>(1.) / math::dot(n, dir);
         const auto u = math::dot(r, e2) * inv_det;
         const auto v = math::dot(r, e1) * inv_det;
-        const auto w = static_cast<float>(1.) - u - v;
+    const auto w = static_cast<T>(1.) - u - v;
         if (u < tolerance || v < tolerance || w < tolerance)
             return std::nullopt;
         const auto t = math::dot(n, c) * inv_det;
         if (t < tmin || t > tmax)
             return std::nullopt;
-        return std::make_tuple(u, v, t);
-    };
-    bvh::Ray<float, 3> ray(*(bvh::Vec<float, 3> *)(&org), *(bvh::Vec<float, 3> *)(&dir));
-    intersection inter;
-    float outer_tmax = std::numeric_limits<float>::max();
-    auto intersect_sub = [&](size_t i) {
+    triangle::intersection inter;
+    inter.uv = { u, v };
+    inter.distance = t;
+    return inter;
+}
+
+std::optional<scene::subscene::intersection> scene::subscene::intersect(const math::float3& org, const math::float3& dir) const
+{
+    static constexpr size_t stack_size = 64;
         static constexpr size_t invalid_id = std::numeric_limits<size_t>::max();
+    math::float3 _org, _dir;
+    std::tie(_org, _dir) = math::transform_ray(transform, org, dir);
+
         auto prim_id = invalid_id;
-
-        const auto& sub_scene = scenes[i];
-        const auto& sub_acc = sub_scene.accelerator;
-        const auto& sub_tris = sub_scene.triangles;
-
-        math::float3 _org, _dir;
-        std::tie(_org, _dir) = math::transform_ray(sub_scene.transform, org, dir);
-        bvh::Ray<float, 3> _ray(*(bvh::Vec<float, 3> *)(&_org), *(bvh::Vec<float, 3> *)(&_dir));
-        math::float3 n;
-        float tmax = std::numeric_limits<float>::max();
+    triangle<float>::intersection t_inter;
+    t_inter.distance = std::numeric_limits<float>::max();
         auto leaf_test = [&](size_t begin, size_t end) {
             for (size_t i = begin; i < end; ++i) {
-                if (auto hit = intersect_tri(_org, _dir, sub_tris[i], tmax)) {
-                    float u, v, t;
-                    std::tie(u, v, t) = *hit;
-                    if (t < tmax) {
-                        tmax = t;
+            if (const auto hit = triangles[i].intersect(_org, _dir)) {
+                if (hit->distance < t_inter.distance) {
+                    t_inter = *hit;
                         prim_id = i;
-                        n.E = sub_tris[i].n.values;
                     }
                 }
             }
             return prim_id != invalid_id;
         };
+    bvh::Ray<float, 3> _ray(*(bvh::Vec<float, 3> *)(&_org), *(bvh::Vec<float, 3> *)(&_dir));
         bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
-        sub_acc.template intersect<false, true>(_ray, sub_acc.get_root().index, stack, leaf_test);
+    accelerator.template intersect<false, true>(_ray, accelerator.get_root().index, stack, leaf_test);
 
-        if (tmax < outer_tmax) {
-            outer_tmax = tmax;
-            inter.color = sub_scene.material.albedo.c * std::abs(math::dot(_dir, math::normalize(n)));
-            return true;
+    if (prim_id != invalid_id) {
+        scene::subscene::intersection inter;
+        const auto& tri = triangles[prim_id];
+        const auto pbarycentric = tri.p0 - tri.e1 * t_inter.uv.u + tri.e2 * t_inter.uv.v;
+        inter.position = pbarycentric;
+        inter.normal = math::normalize(tri.n);
+        inter.distance = t_inter.distance;
+        return inter;
         }
-        return false;
-    };
+    return std::nullopt;
+}
+
+std::optional<scene::intersection> scene::intersect(const math::float3& org, const math::float3& dir) const
+{
+    static constexpr size_t stack_size = 64;
+    subscene::intersection s_inter;
+    s_inter.distance = std::numeric_limits<float>::max();
     bool outer_hit = false;
     auto leaf_test_bbox = [&](size_t begin, size_t end) {
-        bool hit = false;
+        bool inner_hit = false;
         for (size_t i = begin; i < end; ++i) {
-            if (intersect_sub(i)) {
-                hit = true;
+            if (const auto hit = scenes[i].intersect(org, dir)) {
+                inner_hit = true;
+                if (hit->distance < s_inter.distance) {
+                    s_inter = *hit;
                 outer_hit = true;
             }
         }
-        return hit;
+        }
+        return inner_hit;
     };
+    bvh::Ray<float, 3> ray(*(bvh::Vec<float, 3> *)(&org), *(bvh::Vec<float, 3> *)(&dir));
     bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
     accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test_bbox);
 
-    if (outer_hit)
+    if (outer_hit) {
+        scene::intersection inter;
+        inter.color = s_inter.position;
         return inter;
+    }
     return std::nullopt;
 }
 } // namespace luc
