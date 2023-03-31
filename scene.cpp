@@ -36,7 +36,7 @@ void scene::append_model(luc::model&& model)
             continue;
         for (const auto& submesh : model.meshes[minst.id].meshes) {
             subscene sscene;
-            sscene.transform = math::inverse(minst.transform);
+            sscene.transform = minst.transform;
             sscene.material = model.materials[submesh.material];
             auto get_bvh_vec = [&](const math::float3 v) {
                 return *(bvh::Vec<float, 3> *)(&v);
@@ -71,7 +71,7 @@ void scene::append_model(luc::model&& model)
                                   }
                               });
             centerd /= (double)triangle_count;
-            sscene.center = math::float3(centerd.x, centerd.y, centerd.z);
+            sscene.center = math::float3((float)centerd.x, (float)centerd.y, (float)centerd.z);
 
             typename bvh::DefaultBuilder<bvh::Node<float, 3>>::Config config;
             config.quality = bvh::DefaultBuilder<bvh::Node<float, 3>>::Quality::High;
@@ -101,10 +101,21 @@ void scene::commit()
                       [&](size_t begin, size_t end) {
                           for (size_t i = begin; i < end; ++i) {
                               const auto& scene = scenes[i];
-                              bboxes[i].min.values = scene.bounds.min.E;
-                              bboxes[i].max.values = scene.bounds.max.E;
-                              centers[i].values = scene.center.E;
-                              // these should be transformed
+                              math::bounds3 tbox;
+                              math::double3 tcenter;
+                              for (const auto& ptri : scene.triangles) {
+                                  const math::float3 p0(ptri.p0.values), e1(ptri.e1.values), e2(ptri.e2.values), p1 = p0 + e1, p2 = p0 + e2;
+                                  const auto t0 = math::mul(scene.transform, math::float4(p0, 1.f)).xyz;
+                                  const auto t1 = math::mul(scene.transform, math::float4(p1, 1.f)).xyz;
+                                  const auto t2 = math::mul(scene.transform, math::float4(p2, 1.f)).xyz;
+                                  tbox.extend(t0).extend(t1).extend(t2);
+                                  const auto c = (t0 + t1 + t2) * (1.f / 3.f);
+                                  tcenter += math::double3(c.x, c.y, c.z);
+                              }
+                              tcenter /= (double)scene.triangles.size();
+                              bboxes[i].min.values = tbox.min.E;
+                              bboxes[i].max.values = tbox.max.E;
+                              centers[i] = { (float)tcenter.x, (float)tcenter.y, (float)tcenter.z };
                           }
                       });
 
@@ -116,31 +127,12 @@ void scene::commit()
     scenes.resize(count);
     executor.for_each(0, count,
                       [&](size_t begin, size_t end) {
-                          for (size_t i = begin; i < end; ++i)
+                          for (size_t i = begin; i < end; ++i) {
                               scenes[i] = std::move(old[accelerator.prim_ids[i]]);
+                              scenes[i].transform = math::inverse(scenes[i].transform);
+                          }
                       });
 }
-
-// BVH_ALWAYS_INLINE Tri<T, 3> convert_to_tri() const
-// {
-//     return Tri<T, 3>(p0, p0 - e1, e2 + p0);
-// }
-// BVH_ALWAYS_INLINE BBox<T, 3> get_bbox() const
-// {
-//     return convert_to_tri().get_bbox();
-// }
-// BVH_ALWAYS_INLINE Vec<T, 3> get_center() const
-// {
-//     return convert_to_tri().get_center();
-// }
-// BVH_ALWAYS_INLINE BBox<T, 3> get_bbox() const
-// {
-//     return BBox(p0).extend(p1).extend(p2);
-// }
-// BVH_ALWAYS_INLINE Vec<T, 3> get_center() const
-// {
-//     return (p0 + p1 + p2) * static_cast<T>(1. / 3.);
-// }
 
 std::optional<scene::intersection> scene::intersect(const math::float3& org, const math::float3& dir)
 {
@@ -194,26 +186,15 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
             }
             return prim_id != invalid_id;
         };
-#if 1
         bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
         sub_acc.template intersect<false, true>(_ray, sub_acc.get_root().index, stack, leaf_test);
 
-        if (tmax < outer_tmax)
-        {
-            outer_tmax = tmax;
-            inter.color = sub_scene.material.albedo.c * std::abs(math::dot(_dir, math::normalize(n)));
-        }
-        return prim_id != invalid_id;
-#else
-        const bool ehm = leaf_test(0, sub_tris.size());
         if (tmax < outer_tmax) {
             outer_tmax = tmax;
-            inter.color = sub_scene.material.albedo.c;
+            inter.color = sub_scene.material.albedo.c * std::abs(math::dot(_dir, math::normalize(n)));
             return true;
         }
         return false;
-#endif
-        // return leaf_test(0, sub_tris.size());
     };
     bool outer_hit = false;
     auto leaf_test_bbox = [&](size_t begin, size_t end) {
@@ -226,11 +207,8 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
         }
         return hit;
     };
-    // bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
-    // accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test_bbox);
-    // outer_hit = outer_hit || leaf_test_bbox(0, scenes.size());
-
-    leaf_test_bbox(0, scenes.size());
+    bvh::SmallStack<typename bvh::Bvh<bvh::Node<float, 3>>::Index, stack_size> stack;
+    accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test_bbox);
 
     if (outer_hit)
         return inter;

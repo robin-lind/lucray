@@ -134,10 +134,9 @@ void parallel_for(const work_domain<TSize>& domain, auto&& tile_func, abort_toke
     auto range_queue = range_queue_from_domain(domain.ranges);
     std::mutex work_stealing_mutex;
     const auto hardware_concurrency = std::thread::hardware_concurrency();
-    // const auto number_of_threads = hardware_concurrency;
-    const auto number_of_threads = hardware_concurrency * 4 / 3;
-    // const auto number_of_threads = hardware_concurrency * 32 / 22;
-    // const auto number_of_threads = hardware_concurrency * 3 / 2;
+    // const auto number_of_threads = hardware_concurrency; // base
+    // const auto number_of_threads = hardware_concurrency * 4 / 3; // 1% faster than base
+    const auto number_of_threads = hardware_concurrency * 3 / 2; // 2% faster than base
     const auto thread_count = parallel ? number_of_threads : 1;
     auto worker = [&]() {
         work_block<TSize> block(domain.range, domain.range);
