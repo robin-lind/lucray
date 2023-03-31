@@ -127,7 +127,7 @@ luc::model load_gltf(std::filesystem::path& path)
                         const auto *data = (math::double3 *)data_address;
                         for (size_t i = 0; i < count; i++) {
                             const auto& v = data[i];
-                            vertices[i] = math::float3(v.x, v.y, v.z);
+                            vertices[i] = math::float3((float)v.x, (float)v.y, (float)v.z);
                         }
                     } break;
                     default:
@@ -186,9 +186,9 @@ luc::model load_gltf(std::filesystem::path& path)
                             const auto n1 = data[f1];
                             const auto n2 = data[f2];
 
-                            normals[i + 0] = math::float3(n0.x, n0.y, n0.z);
-                            normals[i + 1] = math::float3(n1.x, n1.y, n1.z);
-                            normals[i + 2] = math::float3(n2.x, n2.y, n2.z);
+                            normals[i + 0] = math::float3((float)n0.x, (float)n0.y, (float)n0.z);
+                            normals[i + 1] = math::float3((float)n1.x, (float)n1.y, (float)n1.z);
+                            normals[i + 2] = math::float3((float)n2.x, (float)n2.y, (float)n2.z);
                         }
                     } break;
                     default:
@@ -247,9 +247,9 @@ luc::model load_gltf(std::filesystem::path& path)
                             const auto uv1 = data[f1];
                             const auto uv2 = data[f2];
 
-                            texcoords[i + 0] = math::float2(uv0.x, uv0.y);
-                            texcoords[i + 1] = math::float2(uv1.x, uv1.y);
-                            texcoords[i + 2] = math::float2(uv2.x, uv2.y);
+                            texcoords[i + 0] = math::float2((float)uv0.x, (float)uv0.y);
+                            texcoords[i + 1] = math::float2((float)uv1.x, (float)uv1.y);
+                            texcoords[i + 2] = math::float2((float)uv2.x, (float)uv2.y);
                         }
                     } break;
                     default:
@@ -336,15 +336,15 @@ luc::model load_gltf(std::filesystem::path& path)
             LOG(ERROR) << "unknown instance type\n";
         }
         if (!gnode.translation.empty()) {
-            const auto translation = math::translation(math::float3(gnode.translation[0], gnode.translation[1], gnode.translation[2]));
+            const auto translation = math::translation(math::float3((float)gnode.translation[0], (float)gnode.translation[1], (float)gnode.translation[2]));
             instance.transform = math::mul(instance.transform, translation);
         }
         if (!gnode.scale.empty()) {
-            const auto scale = math::scale<float,4,4>(math::float3(gnode.scale[0], gnode.scale[1], gnode.scale[2]));
+            const auto scale = math::scale<float, 4, 4>(math::float3((float)gnode.scale[0], (float)gnode.scale[1], (float)gnode.scale[2]));
             instance.transform = math::mul(instance.transform, scale);
         }
         if (!gnode.rotation.empty()) {
-            const auto rot = math::quat_to_matrix(math::float4(gnode.rotation[0], gnode.rotation[1], gnode.rotation[2], gnode.rotation[3]));
+            const auto rot = math::quat_to_matrix(math::float4((float)gnode.rotation[0], (float)gnode.rotation[1], (float)gnode.rotation[2], (float)gnode.rotation[3]));
             instance.transform = math::mul(instance.transform, rot);
         }
         model.instances.push_back(instance);
@@ -356,7 +356,7 @@ luc::model load_gltf(std::filesystem::path& path)
         luc::model::material material;
         for (const auto& value : gmat.values)
             if (value.first == "baseColorFactor")
-                material.albedo.c = math::float3(value.second.number_array[0], value.second.number_array[1], value.second.number_array[2]);
+                material.albedo.c = math::float3((float)value.second.number_array[0], (float)value.second.number_array[1], (float)value.second.number_array[2]);
             else if (value.first == "metallicFactor")
                 material.metallic.c = (float)value.second.number_value;
             else if (value.first == "roughnessFactor")
@@ -365,7 +365,7 @@ luc::model load_gltf(std::filesystem::path& path)
                 LOG(ERROR) << "unknown material parameter: " << value.first << "\n";
         for (const auto& value : gmat.additionalValues)
             if (value.first == "emissiveFactor")
-                material.emission.c = math::float3(value.second.number_array[0], value.second.number_array[1], value.second.number_array[2]);
+                material.emission.c = math::float3((float)value.second.number_array[0], (float)value.second.number_array[1], (float)value.second.number_array[2]);
             else if (value.first == "doubleSided")
                 LOG(INFO) << "doubleSided is ignored\n";
             else
@@ -379,7 +379,7 @@ luc::model load_gltf(std::filesystem::path& path)
                 material.transmission.c = (float)value.second.Get("transmissionFactor").GetNumberAsDouble();
             else if (value.first == "KHR_materials_specular") {
                 const auto vspec = value.second.Get("specularColorFactor");
-                material.specular.c = math::float3(vspec.Get(0).GetNumberAsDouble(), vspec.Get(1).GetNumberAsDouble(), vspec.Get(2).GetNumberAsDouble());
+                material.specular.c = math::float3((float)vspec.Get(0).GetNumberAsDouble(), (float)vspec.Get(1).GetNumberAsDouble(), (float)vspec.Get(2).GetNumberAsDouble());
             }
             else
                 LOG(ERROR) << "unknown material extension: " << value.first << "\n";
