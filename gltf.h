@@ -24,16 +24,9 @@
 #define SCENE_H
 
 #include "model.h"
-#include "math/vector.h"
-#include "tinygltf/tiny_gltf.h"
 #include <filesystem>
 
 namespace luc::inner {
-std::vector<uint32_t> indices_from_prim(const tinygltf::Model& gmodel, const tinygltf::Primitive& gprim);
-std::vector<math::float3> vertices_from_attributes(const tinygltf::Model& gmodel, int accessor_key);
-std::vector<math::float3> normals_from_attributes(const tinygltf::Model& gmodel, int accessor_key, std::vector<uint32_t>& indices);
-std::vector<math::float2> texcoords_from_attributes(const tinygltf::Model& gmodel, int accessor_key, std::vector<uint32_t>& indices);
-luc::model::mesh process_mesh(const tinygltf::Model& gmodel, const tinygltf::Mesh& gmesh);
 luc::model load_gltf(std::filesystem::path& path);
 } // namespace luc::inner
 
