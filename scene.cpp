@@ -62,9 +62,9 @@ void scene::append_model(luc::model&& model)
                                       const auto v1 = submesh.vertices[t1];
                                       const auto v2 = submesh.vertices[t2];
                                       const math::bounds3 bounds(v0, v1, v2);
-                                      bboxes[i].min.values = bounds.min.E;
-                                      bboxes[i].max.values = bounds.max.E;
-                                      centers[i].values = ((v0 + v1 + v2) * (1.f / 3.f)).E;
+                                      bboxes[i].min.values = bounds.min.values;
+                                      bboxes[i].max.values = bounds.max.values;
+                                      centers[i].values = ((v0 + v1 + v2) * (1.f / 3.f)).values;
                                   }
                               });
 
@@ -126,8 +126,8 @@ void scene::commit()
                               }
                               tcenter /= (double)scene.triangles.size();
                               centers[i] = { (float)tcenter.x, (float)tcenter.y, (float)tcenter.z };
-                              bboxes[i].min.values = tbox.min.E;
-                              bboxes[i].max.values = tbox.max.E;
+                              bboxes[i].min.values = tbox.min.values;
+                              bboxes[i].max.values = tbox.max.values;
                           }
                       });
 

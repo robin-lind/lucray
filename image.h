@@ -87,9 +87,9 @@ template<typename T, typename S, size_t N>
 math::vector<T, N> convert_pixel(const math::vector<S, N>& v)
 {
     math::vector<T, N> result;
-    result.E = [&]<std::size_t... I>(std::index_sequence<I...>)
+    result.values = [&]<std::size_t... I>(std::index_sequence<I...>)
     {
-        return std::array<T, N>{ convert_pixel_type<T, S>(std::get<I>(v.E))... };
+        return std::array<T, N>{ convert_pixel_type<T, S>(std::get<I>(v.values))... };
     }
     (std::make_index_sequence<N>{});
     return result;
@@ -104,7 +104,7 @@ void load_raw_into_image(texture<T, N>& image, size_t channels, const void *data
         for (int x = 0; x < image.buffer.width; x++) {
             math::vector<T, N> result;
             for (int c = 0; c < c_max; c++)
-                result.E[c] = convert_pixel_type<T>(read[c]);
+                result.values[c] = convert_pixel_type<T>(read[c]);
             image.buffer.pixel(x, y, result);
             read += channels;
         }

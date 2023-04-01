@@ -27,163 +27,67 @@
 #include "tinygltf/tiny_gltf.h"
 
 namespace luc::inner {
-auto vertices_from_attributes(const tinygltf::Model& gmodel, const int accessor_key)
+template<typename T, typename S, size_t N>
+auto get_component_list(const tinygltf::Model& gmodel, const tinygltf::Accessor& accessor)
 {
-    const auto attrib_accessor = gmodel.accessors[accessor_key];
-    const auto& buffer_view = gmodel.bufferViews[attrib_accessor.bufferView];
-    const auto& buffer = gmodel.buffers[buffer_view.buffer];
-    const auto *data_address = buffer.data.data() + buffer_view.byteOffset + attrib_accessor.byteOffset;
-    const auto count = attrib_accessor.count;
-    LOG(INFO) << "Position count: " << count << "\n";
-    std::vector<math::float3> vertices(count);
-    switch (attrib_accessor.type) {
-        case TINYGLTF_TYPE_VEC3: {
-            switch (attrib_accessor.componentType) {
-                case TINYGLTF_COMPONENT_TYPE_FLOAT: {
-                    LOG(INFO) << "Type is FLOAT\n";
-                    const auto *data = (math::float3 *)data_address;
-                    for (size_t i = 0; i < count; i++)
-                        vertices[i] = data[i];
-                } break;
-                case TINYGLTF_COMPONENT_TYPE_DOUBLE: {
-                    LOG(INFO) << "Type is DOUBLE\n";
-                    const auto *data = (math::double3 *)data_address;
-                    for (size_t i = 0; i < count; i++) {
-                        const auto& v = data[i];
-                        vertices[i] = math::float3((float)v.x, (float)v.y, (float)v.z);
-                    }
-                } break;
-                default:
-                    LOG(ERROR) << "Vertex position not float or double\n";
-                    break;
-            }
-        } break;
-        default:
-            LOG(ERROR) << "Vertex position not 3D\n";
-            break;
+    if constexpr (N == 1) {
+        const auto& buffer_view = gmodel.bufferViews[accessor.bufferView];
+        const auto& buffer = gmodel.buffers[buffer_view.buffer];
+        const auto *ptr = buffer.data.data() + buffer_view.byteOffset + accessor.byteOffset;
+        std::vector<T> values(accessor.count);
+        const auto *data = (S *)ptr;
+        for (size_t i = 0; i < accessor.count; i++)
+            values[i] = static_cast<T>(data[i]);
+        return values;
     }
-    return vertices;
+    else {
+        const auto& buffer_view = gmodel.bufferViews[accessor.bufferView];
+        const auto& buffer = gmodel.buffers[buffer_view.buffer];
+        const auto *ptr = buffer.data.data() + buffer_view.byteOffset + accessor.byteOffset;
+        std::vector<math::vector<T, N>> values(accessor.count);
+        const auto *data = (math::vector<S, N> *)ptr;
+        for (size_t i = 0; i < accessor.count; i++) {
+            values[i] = [&]<std::size_t... I>(std::index_sequence<I...>)
+            {
+                return math::vector<T, N>(static_cast<T>(std::get<I>(data[i].values))...);
+            }
+            (std::make_index_sequence<N>{});
+        }
+        return values;
+    }
 }
 
-auto normals_from_attributes(const tinygltf::Model& gmodel, const int accessor_key)
+template<typename T, size_t N>
+auto get_component(const tinygltf::Model& gmodel, int accessor_key)
 {
-    const auto attrib_accessor = gmodel.accessors[accessor_key];
-    const auto& buffer_view = gmodel.bufferViews[attrib_accessor.bufferView];
-    const auto& buffer = gmodel.buffers[buffer_view.buffer];
-    const auto *data_address = buffer.data.data() + buffer_view.byteOffset + attrib_accessor.byteOffset;
-    const auto count = attrib_accessor.count;
-    LOG(INFO) << "Normal count: " << count << "\n";
-    std::vector<math::float3> normals(count);
-    switch (attrib_accessor.type) {
-        case TINYGLTF_TYPE_VEC3: {
-            switch (attrib_accessor.componentType) {
-                case TINYGLTF_COMPONENT_TYPE_FLOAT: {
-                    LOG(INFO) << "Type is FLOAT\n";
-                    const auto *data = (math::float3 *)data_address;
-                    for (size_t i = 0; i < count; i++)
-                        normals[i] = data[i];
-                } break;
-                case TINYGLTF_COMPONENT_TYPE_DOUBLE: {
-                    LOG(INFO) << "Type is DOUBLE\n";
-                    const auto *data = (math::double3 *)data_address;
-                    for (size_t i = 0; i < count; i++) {
-                        const auto& v = data[i];
-                        normals[i] = math::float3((float)v.x, (float)v.y, (float)v.z);
-                    }
-                } break;
-                default:
-                    LOG(ERROR) << "Vertex normals not float or double\n";
-                    break;
-            }
-        } break;
-        default:
-            LOG(ERROR) << "Vertex normals not 3D\n";
-            break;
+    const auto& accessor = gmodel.accessors[accessor_key];
+    switch (accessor.componentType) {
+        case TINYGLTF_COMPONENT_TYPE_BYTE:
+            return get_component_list<T, int8_t, N>(gmodel, accessor);
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+            return get_component_list<T, uint8_t, N>(gmodel, accessor);
+        case TINYGLTF_COMPONENT_TYPE_SHORT:
+            return get_component_list<T, int16_t, N>(gmodel, accessor);
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+            return get_component_list<T, uint16_t, N>(gmodel, accessor);
+        case TINYGLTF_COMPONENT_TYPE_INT:
+            return get_component_list<T, int32_t, N>(gmodel, accessor);
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+            return get_component_list<T, uint32_t, N>(gmodel, accessor);
+        case TINYGLTF_COMPONENT_TYPE_FLOAT:
+            return get_component_list<T, float, N>(gmodel, accessor);
+        case TINYGLTF_COMPONENT_TYPE_DOUBLE:
+            return get_component_list<T, double, N>(gmodel, accessor);
     }
-    return normals;
-}
-
-auto texcoords_from_attributes(const tinygltf::Model& gmodel, const int accessor_key)
-{
-    const auto attrib_accessor = gmodel.accessors[accessor_key];
-    const auto& buffer_view = gmodel.bufferViews[attrib_accessor.bufferView];
-    const auto& buffer = gmodel.buffers[buffer_view.buffer];
-    const auto *data_address = buffer.data.data() + buffer_view.byteOffset + attrib_accessor.byteOffset;
-    const auto count = attrib_accessor.count;
-    LOG(INFO) << "Texture coordinate count: " << count << "\n";
-    std::vector<math::float2> texcoords(count);
-    switch (attrib_accessor.type) {
-        case TINYGLTF_TYPE_VEC2: {
-            switch (attrib_accessor.componentType) {
-                case TINYGLTF_COMPONENT_TYPE_FLOAT: {
-                    LOG(INFO) << "Type is FLOAT\n";
-                    const auto *data = (math::float2 *)data_address;
-                    for (size_t i = 0; i < count; i++)
-                        texcoords[i] = data[i];
-                } break;
-                case TINYGLTF_COMPONENT_TYPE_DOUBLE: {
-                    LOG(INFO) << "Type is DOUBLE\n";
-                    const auto *data = (math::double2 *)data_address;
-                    for (size_t i = 0; i < count; i++) {
-                        const auto& v = data[i];
-                        texcoords[i] = math::float2((float)v.x, (float)v.y);
-                    }
-                } break;
-                default:
-                    LOG(ERROR) << "Vertex UVs not float or double\n";
-                    break;
-            }
-        } break;
-        default:
-            LOG(ERROR) << "Vertex UVs not 2D\n";
-            break;
+    LOG(ERROR) << "unknown component type!\n";
+    if constexpr (N == 1) {
+        std::vector<T> values(accessor.count);
+        return values;
     }
-    return texcoords;
-}
-
-auto indices_from_prim(const tinygltf::Model& gmodel, const tinygltf::Primitive& gprim)
-{
-    const auto& indices_accessor = gmodel.accessors[gprim.indices];
-    const auto& buffer_view = gmodel.bufferViews[indices_accessor.bufferView];
-    const auto& buffer = gmodel.buffers[buffer_view.buffer];
-    const auto *data_address = buffer.data.data() + buffer_view.byteOffset + indices_accessor.byteOffset;
-    const auto count = indices_accessor.count;
-    std::vector<uint32_t> indices(count);
-    switch (indices_accessor.componentType) {
-        case TINYGLTF_COMPONENT_TYPE_BYTE: {
-            const auto *data = (int8_t *)data_address;
-            for (size_t i = 0; i < count; i++)
-                indices[i] = (uint8_t)data[i];
-        } break;
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: {
-            const auto *data = (uint8_t *)data_address;
-            for (size_t i = 0; i < count; i++)
-                indices[i] = data[i];
-        } break;
-        case TINYGLTF_COMPONENT_TYPE_SHORT: {
-            const auto *data = (int16_t *)data_address;
-            for (size_t i = 0; i < count; i++)
-                indices[i] = data[i];
-        } break;
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
-            const auto *data = (uint16_t *)data_address;
-            for (size_t i = 0; i < count; i++)
-                indices[i] = data[i];
-        } break;
-        case TINYGLTF_COMPONENT_TYPE_INT: {
-            const auto *data = (int32_t *)data_address;
-            for (size_t i = 0; i < count; i++)
-                indices[i] = data[i];
-        } break;
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
-            const auto *data = (uint32_t *)data_address;
-            for (size_t i = 0; i < count; i++)
-                indices[i] = data[i];
-        } break;
-        default:
-            break;
+    else {
+        std::vector<math::vector<T, N>> values(accessor.count);
+        return values;
     }
-    return indices;
 }
 
 auto process_meshes(const tinygltf::Model& gmodel)
@@ -196,24 +100,19 @@ auto process_meshes(const tinygltf::Model& gmodel)
         for (const auto& gprim : gmesh.primitives) {
             luc::model::mesh::submesh smesh;
             smesh.material = gprim.material;
-            smesh.indices = indices_from_prim(gmodel, gprim);
+            smesh.indices = get_component<uint32_t, 1>(gmodel, gprim.indices);
             switch (gprim.mode) {
                 case TINYGLTF_MODE_TRIANGLES: {
                     LOG(INFO) << "TRIANGLES\n";
                     for (const auto& attribute : gprim.attributes) {
                         if (attribute.first == "POSITION")
-                            smesh.vertices = std::move(vertices_from_attributes(gmodel, attribute.second));
+                            smesh.vertices = get_component<float, 3>(gmodel, attribute.second);
                         if (attribute.first == "NORMAL")
-                            smesh.normals = std::move(normals_from_attributes(gmodel, attribute.second));
+                            smesh.normals = get_component<float, 3>(gmodel, attribute.second);
                         if (attribute.first == "TEXCOORD_0")
-                            smesh.texcoords = std::move(texcoords_from_attributes(gmodel, attribute.second));
+                            smesh.texcoords = get_component<float, 2>(gmodel, attribute.second);
                     }
                 } break;
-                case TINYGLTF_MODE_POINTS:
-                case TINYGLTF_MODE_LINE:
-                case TINYGLTF_MODE_LINE_LOOP:
-                    LOG(ERROR) << "primitive is not triangle based, ignoring\n";
-                    break;
                 default:
                     LOG(ERROR) << "primitive mode not implemented\n";
                     break;
