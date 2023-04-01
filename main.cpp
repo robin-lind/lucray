@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <fstream>
@@ -85,8 +86,6 @@ int main(int argc, char *argv[])
     const float fov_x = 70.f;
     const math::float3 eye(0.f, 1.31f, 4.7f);
     const math::float3 target(0.f, 0.f, -2.72755f);
-    // const math::float3 eye(2.f);
-    // const math::float3 target(0.f);
     const ray_camera<float> camera(width, height, eye, target, { 0.f, 1.f, 0.f }, fov_x);
     luc::framebuffer<math::float3> framebuffer(width, height);
     bool done = false;
@@ -111,7 +110,6 @@ int main(int argc, char *argv[])
                       ((float)samples.size() + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)sample_count_true);
             auto start = std::chrono::steady_clock::now();
             std::cout << "frame(" << frame << ")";
-            // memset(framebuffer.pixels.data(), 0, framebuffer.pixels.size() * sizeof(math::float3));
             const auto domain = generate_parallel_for_domain(width, height);
             auto tile_func = [&](const work_block<int>& block) {
                 static thread_local work_range<int> *active_range = nullptr;
@@ -123,8 +121,6 @@ int main(int argc, char *argv[])
                 else {
                     *active_range = block.tile;
                 }
-                // std::random_device rd_inner;
-                // std::mt19937 rng_inner(rd_inner());
                 auto item_func = [&](const int x, const int y, auto&& transform) {
                     math::float3 color;
                     for (auto& sample : samples) {
@@ -138,9 +134,6 @@ int main(int argc, char *argv[])
                 };
                 iterate_over_tile(block, aborter, item_func);
             };
-            // const work_block<int> sub_block({432,590,620,680}, domain.range);
-            // const work_block<int> sub_block({500,501,640,641}, domain.range);
-            // tile_func(sub_block);
             parallel_for<int, true>(domain, tile_func, aborter);
             frame++;
             const auto end = std::chrono::steady_clock::now();
@@ -183,16 +176,6 @@ int main(int argc, char *argv[])
                 raylib::DrawRectangleLines(range->minx, range->miny, range->maxx - range->minx, range->maxy - range->miny, raylib::WHITE);
         }
         raylib::DrawRectangleLines(0, 0, width, height, raylib::RED);
-        if (raylib::IsCursorOnScreen()) {
-            std::stringstream text_s;
-
-            std::string text("mouse: ");
-            text += std::to_string(raylib::GetMouseX());
-            text += ",";
-            text += std::to_string(raylib::GetMouseY());
-            text += "\n";
-            raylib::DrawText(text.c_str(), 20, 20, 20, raylib::GREEN);
-        }
         raylib::EndDrawing();
         if (raylib::IsKeyPressed(raylib::KeyboardKey::KEY_ESCAPE))
             aborter.abort();

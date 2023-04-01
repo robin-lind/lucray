@@ -23,9 +23,10 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+#include <optional>
 #include <vector>
 #include "math/math.h"
-#include "math/vector.h"
+#include "image.h"
 
 namespace luc {
 struct model {
@@ -43,14 +44,9 @@ struct model {
 
     struct material {
         template<typename TColor>
-        struct texture {
-            int yolo;
-        };
-
-        template<typename TColor>
         struct color {
             TColor c;
-            texture<TColor> t;
+            std::optional<int> texture;
         };
 
         color<math::float3> albedo;
@@ -77,6 +73,7 @@ struct model {
     std::vector<luc::model::mesh> meshes;
     std::vector<luc::model::instance> instances;
     std::vector<luc::model::material> materials;
+    std::vector<luc::texture<float,3>> textures;
 };
 } // namespace luc
 

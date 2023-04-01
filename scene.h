@@ -51,6 +51,21 @@ struct triangle {
     std::optional<intersection> intersect(const math::vector<T, 3>& org, const math::vector<T, 3>& dir) const;
 };
 
+template<typename T>
+union triplet {
+    triplet() :
+      p0(0), e1(0), e2(0) {}
+
+    triplet(const T& p0, const T& p1, const T& p2) :
+      p0(p0), e1(p0 - p1), e2(p2 - p0) {}
+
+    std::array<T, 3> E;
+
+    struct {
+        T p0, e1, e2;
+    };
+};
+
 struct scene {
     struct intersection {
         math::float3 color;
@@ -59,19 +74,26 @@ struct scene {
     struct subscene {
         model::material material;
         math::matrix4 transform;
+        math::matrix4 inverse;
         math::float3 center;
         math::bounds3 bounds;
         std::vector<triangle<float>> triangles;
+        std::vector<triplet<math::float3>> normals;
+        std::vector<triplet<math::float2>> texcoords;
         bvh::Bvh<bvh::Node<float, 3>> accelerator;
+
         struct intersection {
             math::float3 position;
             math::float3 normal;
+            math::float2 texcoord;
             float distance = std::numeric_limits<float>::max();
         };
+
         std::optional<intersection> intersect(const math::float3& org, const math::float3& dir) const;
     };
 
     std::vector<subscene> scenes;
+    std::vector<luc::texture<float, 3>> textures;
     bvh::Bvh<bvh::Node<float, 3>> accelerator;
 
     void append_model(luc::model&& model);

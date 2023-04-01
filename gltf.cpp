@@ -22,6 +22,8 @@
 
 #include "gltf.h"
 #include "aixlog.hpp"
+#include "image.h"
+#include "math/vector.h"
 
 namespace luc::inner {
 std::vector<uint32_t> indices_from_prim(const tinygltf::Model& gmodel, const tinygltf::Primitive& gprim)
@@ -125,38 +127,16 @@ std::vector<math::float3> normals_from_attributes(const tinygltf::Model& gmodel,
                     LOG(INFO) << "Type is FLOAT\n";
 
                     const auto *data = (math::float3 *)data_address;
-                    const auto t_count = indices.size() / 3;
-                    for (size_t i = 0; i < t_count; ++i) {
-                        const auto f0 = indices[3 * i + 0];
-                        const auto f1 = indices[3 * i + 1];
-                        const auto f2 = indices[3 * i + 2];
-
-                        const auto n0 = data[f0];
-                        const auto n1 = data[f1];
-                        const auto n2 = data[f2];
-
-                        normals[i + 0] = math::float3(n0.x, n0.y, n0.z);
-                        normals[i + 1] = math::float3(n1.x, n1.y, n1.z);
-                        normals[i + 2] = math::float3(n2.x, n2.y, n2.z);
-                    }
+                    for (size_t i = 0; i < count; i++)
+                        normals[i] = data[i];
                 } break;
                 case TINYGLTF_COMPONENT_TYPE_DOUBLE: {
                     LOG(INFO) << "Type is DOUBLE\n";
 
                     const auto *data = (math::double3 *)data_address;
-                    const auto t_count = indices.size() / 3;
-                    for (size_t i = 0; i < t_count; ++i) {
-                        const auto f0 = indices[3 * i + 0];
-                        const auto f1 = indices[3 * i + 1];
-                        const auto f2 = indices[3 * i + 2];
-
-                        const auto n0 = data[f0];
-                        const auto n1 = data[f1];
-                        const auto n2 = data[f2];
-
-                        normals[i + 0] = math::float3((float)n0.x, (float)n0.y, (float)n0.z);
-                        normals[i + 1] = math::float3((float)n1.x, (float)n1.y, (float)n1.z);
-                        normals[i + 2] = math::float3((float)n2.x, (float)n2.y, (float)n2.z);
+                    for (size_t i = 0; i < count; i++) {
+                        const auto& v = data[i];
+                        normals[i] = math::float3((float)v.x, (float)v.y, (float)v.z);
                     }
                 } break;
                 default:
@@ -187,38 +167,16 @@ std::vector<math::float2> texcoords_from_attributes(const tinygltf::Model& gmode
                     LOG(INFO) << "Type is FLOAT\n";
 
                     const auto *data = (math::float2 *)data_address;
-                    const auto t_count = indices.size() / 3;
-                    for (size_t i = 0; i < t_count; ++i) {
-                        const auto f0 = indices[3 * i + 0];
-                        const auto f1 = indices[3 * i + 1];
-                        const auto f2 = indices[3 * i + 2];
-
-                        const auto uv0 = data[f0];
-                        const auto uv1 = data[f1];
-                        const auto uv2 = data[f2];
-
-                        texcoords[i + 0] = math::float2(uv0.x, uv0.y);
-                        texcoords[i + 1] = math::float2(uv1.x, uv1.y);
-                        texcoords[i + 2] = math::float2(uv2.x, uv2.y);
-                    }
+                    for (size_t i = 0; i < count; i++)
+                        texcoords[i] = data[i];
                 } break;
                 case TINYGLTF_COMPONENT_TYPE_DOUBLE: {
                     LOG(INFO) << "Type is DOUBLE\n";
 
                     const auto *data = (math::double2 *)data_address;
-                    const auto t_count = indices.size() / 3;
-                    for (size_t i = 0; i < t_count; ++i) {
-                        const auto f0 = indices[3 * i + 0];
-                        const auto f1 = indices[3 * i + 1];
-                        const auto f2 = indices[3 * i + 2];
-
-                        const auto uv0 = data[f0];
-                        const auto uv1 = data[f1];
-                        const auto uv2 = data[f2];
-
-                        texcoords[i + 0] = math::float2((float)uv0.x, (float)uv0.y);
-                        texcoords[i + 1] = math::float2((float)uv1.x, (float)uv1.y);
-                        texcoords[i + 2] = math::float2((float)uv2.x, (float)uv2.y);
+                    for (size_t i = 0; i < count; i++) {
+                        const auto& v = data[i];
+                        texcoords[i] = math::float2((float)v.x, (float)v.y);
                     }
                 } break;
                 default:
@@ -323,11 +281,38 @@ luc::model load_gltf(std::filesystem::path& path)
         }
         model.instances.push_back(instance);
     }
+    for (const auto& tex : gmodel.textures) {
+        if (tex.source > -1) {
+            const auto& gimage = gmodel.images[tex.source];
+            luc::texture<float, 3> image(gimage.width, gimage.height);
+            switch (gimage.pixel_type) {
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: {
+                    load_raw_into_image<uint8_t>(image, gimage.component, (void *)gimage.image.data());
+                } break;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+                    load_raw_into_image<uint16_t>(image, gimage.component, (void *)gimage.image.data());
+                } break;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
+                    load_raw_into_image<uint32_t>(image, gimage.component, (void *)gimage.image.data());
+                } break;
+                case TINYGLTF_COMPONENT_TYPE_FLOAT: {
+                    load_raw_into_image<float>(image, gimage.component, (void *)gimage.image.data());
+                } break;
+                default:
+                    LOG(ERROR) << "unknown pixel type: " << gimage.mimeType << "(" << gimage.component << "x" << gimage.bits << "bits)\n";
+                    break;
+            }
+            model.textures.push_back(std::move(image));
+            LOG(INFO) << "texture!!!!\n";
+        }
+    }
 
     model.materials.reserve(gmodel.materials.size());
     for (const auto& gmat : gmodel.materials) {
         LOG(INFO) << "Material: " << gmat.name << "\n";
         luc::model::material material;
+        if (gmat.emissiveTexture.index > -1)
+            material.emission.texture = gmat.emissiveTexture.index;
         for (const auto& value : gmat.values)
             if (value.first == "baseColorFactor")
                 material.albedo.c = math::float3((float)value.second.number_array[0], (float)value.second.number_array[1], (float)value.second.number_array[2]);
@@ -340,6 +325,8 @@ luc::model load_gltf(std::filesystem::path& path)
         for (const auto& value : gmat.additionalValues)
             if (value.first == "emissiveFactor")
                 material.emission.c = math::float3((float)value.second.number_array[0], (float)value.second.number_array[1], (float)value.second.number_array[2]);
+            else if (value.first == "emissiveTexture")
+                LOG(INFO) << "emissiveTexture!!!!\n";
             else if (value.first == "doubleSided")
                 LOG(INFO) << "doubleSided is ignored\n";
             else

@@ -34,9 +34,14 @@ void scene::append_model(luc::model&& model)
     for (const auto& minst : model.instances) {
         if (minst.type == luc::model::camera_instance)
             continue;
+        // appending more than one model will screw
+        // up the texture indices in the materials
+        for (auto& tex : model.textures)
+            textures.push_back(std::move(tex));
         for (const auto& submesh : model.meshes[minst.id].meshes) {
             subscene sscene;
             sscene.transform = minst.transform;
+            sscene.inverse = math::inverse(minst.transform);
             sscene.material = model.materials[submesh.material];
             auto get_bvh_vec = [&](const math::float3 v) {
                 return *(bvh::Vec<float, 3> *)(&v);
@@ -75,6 +80,8 @@ void scene::append_model(luc::model&& model)
             sscene.accelerator = bvh::DefaultBuilder<bvh::Node<float, 3>>::build(thread_pool, bboxes, centers, config);
 
             sscene.triangles.resize(triangle_count);
+            sscene.normals.resize(triangle_count);
+            sscene.texcoords.resize(triangle_count);
             executor.for_each(0, triangle_count,
                               [&](size_t begin, size_t end) {
                                   for (size_t i = begin; i < end; ++i) {
@@ -86,6 +93,14 @@ void scene::append_model(luc::model&& model)
                                       const auto v1 = submesh.vertices[t1];
                                       const auto v2 = submesh.vertices[t2];
                                       sscene.triangles[i] = triangle<float>(v0, v1, v2);
+                                      const auto n0 = submesh.normals[t0];
+                                      const auto n1 = submesh.normals[t1];
+                                      const auto n2 = submesh.normals[t2];
+                                      sscene.normals[i] = triplet<math::float3>(n0, n1, n2);
+                                      const auto u0 = submesh.texcoords[t0];
+                                      const auto u1 = submesh.texcoords[t1];
+                                      const auto u2 = submesh.texcoords[t2];
+                                      sscene.texcoords[i] = triplet<math::float2>(u0, u1, u2);
                                   }
                               });
             scenes.push_back(std::move(sscene));
@@ -131,10 +146,8 @@ void scene::commit()
     scenes.resize(count);
     executor.for_each(0, count,
                       [&](size_t begin, size_t end) {
-                          for (size_t i = begin; i < end; ++i) {
+                          for (size_t i = begin; i < end; ++i)
                               scenes[i] = std::move(old[accelerator.prim_ids[i]]);
-                              scenes[i].transform = math::inverse(scenes[i].transform);
-                          }
                       });
 }
 
@@ -164,7 +177,7 @@ std::optional<typename triangle<T>::intersection> triangle<T>::intersect(const m
 std::optional<scene::subscene::intersection> scene::subscene::intersect(const math::float3& org, const math::float3& dir) const
 {
     math::float3 _org, _dir;
-    std::tie(_org, _dir) = math::transform_ray(transform, org, dir);
+    std::tie(_org, _dir) = math::transform_ray(inverse, org, dir);
     static constexpr size_t stack_size = 64;
     static constexpr size_t invalid_id = std::numeric_limits<size_t>::max();
     auto prim_id = invalid_id;
@@ -186,11 +199,22 @@ std::optional<scene::subscene::intersection> scene::subscene::intersect(const ma
 
     if (prim_id != invalid_id) {
         scene::subscene::intersection result;
-        const auto& tri = triangles[prim_id];
-        const auto pbarycentric = tri.p0 - tri.e1 * inter.uv.u + tri.e2 * inter.uv.v;
-        result.position = pbarycentric;
-        result.normal = math::normalize(tri.n);
         result.distance = inter.distance;
+
+        const auto& tri = triangles[prim_id];
+        result.position = tri.p0 - tri.e1 * inter.uv.u + tri.e2 * inter.uv.v;
+
+        const auto& triplet_u = texcoords[prim_id];
+        result.texcoord = triplet_u.p0 - triplet_u.e1 * inter.uv.u + triplet_u.e2 * inter.uv.v;
+
+        const auto& triplet_n = normals[prim_id];
+        result.normal = triplet_n.p0 - triplet_n.e1 * inter.uv.u + triplet_n.e2 * inter.uv.v;
+
+        if (math::dot(result.normal, tri.n) < 0.f)
+            result.normal = -result.normal;
+        result.normal = math::mul(transform, math::float4(result.normal, 0.f)).xyz;
+        result.normal = math::normalize(result.normal);
+
         return result;
     }
     return std::nullopt;
@@ -218,8 +242,21 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
     accelerator.template intersect<false, true>(ray, accelerator.get_root().index, stack, leaf_test);
 
     if (prim_id != invalid_id) {
+        const auto& scene = scenes[prim_id];
         scene::intersection result;
-        result.color = inter.position;
+        const auto c = scene.material.albedo.c;
+        const auto l = math::dot(inter.normal, dir);
+        const auto r = c * l;
+        result.color = r;
+        if (scene.material.emission.texture.has_value()) {
+            const auto& tex = textures[*scene.material.emission.texture];
+            const auto x = (int)std::floor(math::map<float>(inter.texcoord.u, 0, 1, 0, (float)tex.buffer.width));
+            const auto y = (int)std::floor(math::map<float>(inter.texcoord.v, 0, 1, 0, (float)tex.buffer.height));
+            const auto xc = math::clamp(x, 0, tex.buffer.width - 1);
+            const auto yc = math::clamp(y, 0, tex.buffer.height - 1);
+            const auto p = tex.buffer.pixel(xc, yc);
+            result.color += p;
+        }
         return result;
     }
     return std::nullopt;
