@@ -25,14 +25,20 @@
 #include "image.h"
 #include "math/vector.h"
 #include "tinygltf/tiny_gltf.h"
+#include <memory>
 
 namespace luc::inner {
+struct gltf_ctx {
+    tinygltf::Model model;
+    std::vector<std::shared_ptr<luc::texture<float, 3>>> textures;
+};
+
 template<typename T, typename S, size_t N>
-auto get_component_list(const tinygltf::Model& gmodel, const tinygltf::Accessor& accessor)
+auto get_component_list(const gltf_ctx& gltf, const tinygltf::Accessor& accessor)
 {
     if constexpr (N == 1) {
-        const auto& buffer_view = gmodel.bufferViews[accessor.bufferView];
-        const auto& buffer = gmodel.buffers[buffer_view.buffer];
+        const auto& buffer_view = gltf.model.bufferViews[accessor.bufferView];
+        const auto& buffer = gltf.model.buffers[buffer_view.buffer];
         const auto *ptr = buffer.data.data() + buffer_view.byteOffset + accessor.byteOffset;
         std::vector<T> values(accessor.count);
         const auto *data = (S *)ptr;
@@ -41,8 +47,8 @@ auto get_component_list(const tinygltf::Model& gmodel, const tinygltf::Accessor&
         return values;
     }
     else {
-        const auto& buffer_view = gmodel.bufferViews[accessor.bufferView];
-        const auto& buffer = gmodel.buffers[buffer_view.buffer];
+        const auto& buffer_view = gltf.model.bufferViews[accessor.bufferView];
+        const auto& buffer = gltf.model.buffers[buffer_view.buffer];
         const auto *ptr = buffer.data.data() + buffer_view.byteOffset + accessor.byteOffset;
         std::vector<math::vector<T, N>> values(accessor.count);
         const auto *data = (math::vector<S, N> *)ptr;
@@ -58,26 +64,26 @@ auto get_component_list(const tinygltf::Model& gmodel, const tinygltf::Accessor&
 }
 
 template<typename T, size_t N>
-auto get_component(const tinygltf::Model& gmodel, int accessor_key)
+auto get_component(const gltf_ctx& gltf, int accessor_key)
 {
-    const auto& accessor = gmodel.accessors[accessor_key];
+    const auto& accessor = gltf.model.accessors[accessor_key];
     switch (accessor.componentType) {
         case TINYGLTF_COMPONENT_TYPE_BYTE:
-            return get_component_list<T, int8_t, N>(gmodel, accessor);
+            return get_component_list<T, int8_t, N>(gltf, accessor);
         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-            return get_component_list<T, uint8_t, N>(gmodel, accessor);
+            return get_component_list<T, uint8_t, N>(gltf, accessor);
         case TINYGLTF_COMPONENT_TYPE_SHORT:
-            return get_component_list<T, int16_t, N>(gmodel, accessor);
+            return get_component_list<T, int16_t, N>(gltf, accessor);
         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-            return get_component_list<T, uint16_t, N>(gmodel, accessor);
+            return get_component_list<T, uint16_t, N>(gltf, accessor);
         case TINYGLTF_COMPONENT_TYPE_INT:
-            return get_component_list<T, int32_t, N>(gmodel, accessor);
+            return get_component_list<T, int32_t, N>(gltf, accessor);
         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-            return get_component_list<T, uint32_t, N>(gmodel, accessor);
+            return get_component_list<T, uint32_t, N>(gltf, accessor);
         case TINYGLTF_COMPONENT_TYPE_FLOAT:
-            return get_component_list<T, float, N>(gmodel, accessor);
+            return get_component_list<T, float, N>(gltf, accessor);
         case TINYGLTF_COMPONENT_TYPE_DOUBLE:
-            return get_component_list<T, double, N>(gmodel, accessor);
+            return get_component_list<T, double, N>(gltf, accessor);
     }
     LOG(ERROR) << "unknown component type!\n";
     if constexpr (N == 1) {
@@ -90,27 +96,26 @@ auto get_component(const tinygltf::Model& gmodel, int accessor_key)
     }
 }
 
-auto process_meshes(const tinygltf::Model& gmodel)
+void process_meshes(luc::model& model, const gltf_ctx& gltf)
 {
-    std::vector<luc::model::mesh> meshes;
-    meshes.reserve(gmodel.nodes.size());
-    for (const auto& gmesh : gmodel.meshes) {
+    model.meshes.reserve(gltf.model.nodes.size());
+    for (const auto& gmesh : gltf.model.meshes) {
         LOG(INFO) << gmesh.name << "\n";
         luc::model::mesh mesh;
         for (const auto& gprim : gmesh.primitives) {
             luc::model::mesh::submesh smesh;
             smesh.material = gprim.material;
-            smesh.indices = get_component<uint32_t, 1>(gmodel, gprim.indices);
+            smesh.indices = get_component<uint32_t, 1>(gltf, gprim.indices);
             switch (gprim.mode) {
                 case TINYGLTF_MODE_TRIANGLES: {
                     LOG(INFO) << "TRIANGLES\n";
                     for (const auto& attribute : gprim.attributes) {
                         if (attribute.first == "POSITION")
-                            smesh.vertices = get_component<float, 3>(gmodel, attribute.second);
+                            smesh.vertices = get_component<float, 3>(gltf, attribute.second);
                         if (attribute.first == "NORMAL")
-                            smesh.normals = get_component<float, 3>(gmodel, attribute.second);
+                            smesh.normals = get_component<float, 3>(gltf, attribute.second);
                         if (attribute.first == "TEXCOORD_0")
-                            smesh.texcoords = get_component<float, 2>(gmodel, attribute.second);
+                            smesh.texcoords = get_component<float, 2>(gltf, attribute.second);
                     }
                 } break;
                 default:
@@ -119,16 +124,14 @@ auto process_meshes(const tinygltf::Model& gmodel)
             }
             mesh.meshes.push_back(std::move(smesh));
         }
-        meshes.push_back(std::move(mesh));
+        model.meshes.push_back(std::move(mesh));
     }
-    return meshes;
 }
 
-auto process_instances(const tinygltf::Model& gmodel)
+void process_instances(luc::model& model, const gltf_ctx& gltf)
 {
-    std::vector<luc::model::instance> instances;
-    instances.reserve(gmodel.nodes.size());
-    for (const auto& gnode : gmodel.nodes) {
+    model.instances.reserve(gltf.model.nodes.size());
+    for (const auto& gnode : gltf.model.nodes) {
         LOG(INFO) << "Instance: " << gnode.name << "\n";
         luc::model::instance instance;
         if (gnode.mesh > -1) {
@@ -154,85 +157,80 @@ auto process_instances(const tinygltf::Model& gmodel)
             const auto rot = math::quat_to_matrix(math::float4((float)gnode.rotation[0], (float)gnode.rotation[1], (float)gnode.rotation[2], (float)gnode.rotation[3]));
             instance.transform = math::mul(instance.transform, rot);
         }
-        instances.push_back(instance);
+        model.instances.push_back(instance);
     }
-    return instances;
 }
 
-auto process_materials(const tinygltf::Model& gmodel)
+void process_materials(luc::model& model, const gltf_ctx& gltf)
 {
-    std::vector<luc::model::material> materials;
-    materials.reserve(gmodel.materials.size());
-    for (const auto& gmat : gmodel.materials) {
+    model.materials.reserve(gltf.model.materials.size());
+    for (const auto& gmat : gltf.model.materials) {
         LOG(INFO) << "Material: " << gmat.name << "\n";
         luc::model::material material;
         const auto& albedo = gmat.pbrMetallicRoughness.baseColorFactor;
-        material.albedo.c = math::float3((float)albedo[0], (float)albedo[1], (float)albedo[2]);
-        material.metallic.c = (float)gmat.pbrMetallicRoughness.metallicFactor;
-        material.roughness.c = (float)gmat.pbrMetallicRoughness.roughnessFactor;
+        material.albedo.value = math::float3((float)albedo[0], (float)albedo[1], (float)albedo[2]);
+        material.metallic.value.t = (float)gmat.pbrMetallicRoughness.metallicFactor;
+        material.roughness.value.t = (float)gmat.pbrMetallicRoughness.roughnessFactor;
         if (gmat.emissiveTexture.index > -1)
-            material.emission.texture = gmat.emissiveTexture.index;
+            material.emission.texture = gltf.textures[gmat.emissiveTexture.index];
         if (gmat.pbrMetallicRoughness.baseColorTexture.index > -1)
-            material.albedo.texture = gmat.pbrMetallicRoughness.baseColorTexture.index;
+            material.albedo.texture = gltf.textures[gmat.pbrMetallicRoughness.baseColorTexture.index];
         for (const auto& value : gmat.extensions)
             if (value.first == "KHR_materials_emissive_strength")
                 material.emissive_strength = (float)value.second.Get("emissiveStrength").GetNumberAsDouble();
             else if (value.first == "KHR_materials_ior")
-                material.ior.c = (float)value.second.Get("ior").GetNumberAsDouble();
+                material.ior.value.t = (float)value.second.Get("ior").GetNumberAsDouble();
             else if (value.first == "KHR_materials_transmission")
-                material.transmission.c = (float)value.second.Get("transmissionFactor").GetNumberAsDouble();
+                material.transmission.value.t = (float)value.second.Get("transmissionFactor").GetNumberAsDouble();
             else if (value.first == "KHR_materials_specular") {
                 const auto specular = value.second.Get("specularColorFactor");
-                material.specular.c.r = (float)specular.Get(0).GetNumberAsDouble();
-                material.specular.c.g = (float)specular.Get(1).GetNumberAsDouble();
-                material.specular.c.b = (float)specular.Get(2).GetNumberAsDouble();
+                material.specular.value.r = (float)specular.Get(0).GetNumberAsDouble();
+                material.specular.value.g = (float)specular.Get(1).GetNumberAsDouble();
+                material.specular.value.b = (float)specular.Get(2).GetNumberAsDouble();
             }
             else
                 LOG(ERROR) << "unknown material extension: " << value.first << "\n";
-        materials.push_back(material);
+        model.materials.push_back(material);
     }
-    return materials;
 }
 
-auto process_textures(const tinygltf::Model& gmodel)
+void process_textures(gltf_ctx& gltf)
 {
-    std::vector<luc::texture<float, 3>> textures;
-    textures.reserve(gmodel.textures.size());
-    for (const auto& tex : gmodel.textures) {
+    gltf.textures.reserve(gltf.model.textures.size());
+    for (const auto& tex : gltf.model.textures) {
         if (tex.source > -1) {
-            const auto& gimage = gmodel.images[tex.source];
-            luc::texture<float, 3> image(gimage.width, gimage.height);
+            const auto& gimage = gltf.model.images[tex.source];
+            auto image = std::make_shared<luc::texture<float, 3>>(gimage.width, gimage.height);
             switch (gimage.pixel_type) {
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: {
-                    load_raw_into_image<uint8_t>(image, gimage.component, (void *)gimage.image.data());
+                    load_raw_into_image<uint8_t>(image->buffer, gimage.component, (void *)gimage.image.data());
                 } break;
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
-                    load_raw_into_image<uint16_t>(image, gimage.component, (void *)gimage.image.data());
+                    load_raw_into_image<uint16_t>(image->buffer, gimage.component, (void *)gimage.image.data());
                 } break;
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
-                    load_raw_into_image<uint32_t>(image, gimage.component, (void *)gimage.image.data());
+                    load_raw_into_image<uint32_t>(image->buffer, gimage.component, (void *)gimage.image.data());
                 } break;
                 case TINYGLTF_COMPONENT_TYPE_FLOAT: {
-                    load_raw_into_image<float>(image, gimage.component, (void *)gimage.image.data());
+                    load_raw_into_image<float>(image->buffer, gimage.component, (void *)gimage.image.data());
                 } break;
                 default:
                     LOG(ERROR) << "unknown pixel type: " << gimage.mimeType << "(" << gimage.component << "x" << gimage.bits << "bits)\n";
                     break;
             }
-            textures.push_back(std::move(image));
+            gltf.textures.push_back(image);
         }
     }
-    return textures;
 }
 
 luc::model load_gltf(std::filesystem::path& path)
 {
     LOG(INFO) << path << "\n";
-    tinygltf::Model gmodel;
     tinygltf::TinyGLTF ctx;
     ctx.SetStoreOriginalJSONForExtrasAndExtensions(true);
     std::string error, warn;
-    const auto ret = ctx.LoadBinaryFromFile(&gmodel, &error, &warn, path.c_str());
+    gltf_ctx gltf;
+    const auto ret = ctx.LoadBinaryFromFile(&gltf.model, &error, &warn, path.c_str());
     if (!error.empty())
         LOG(ERROR) << error.c_str() << "\n";
     if (!warn.empty())
@@ -240,10 +238,10 @@ luc::model load_gltf(std::filesystem::path& path)
     luc::model model;
     if (!ret)
         return model;
-    model.meshes = process_meshes(gmodel);
-    model.instances = process_instances(gmodel);
-    model.materials = process_materials(gmodel);
-    model.textures = process_textures(gmodel);
+    process_textures(gltf);
+    process_meshes(model, gltf);
+    process_instances(model, gltf);
+    process_materials(model, gltf);
     return model;
 }
 } // namespace luc::inner

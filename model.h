@@ -23,6 +23,7 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+#include <memory>
 #include <optional>
 #include <vector>
 #include "math/math.h"
@@ -43,20 +44,20 @@ struct model {
     };
 
     struct material {
-        template<typename TColor>
+        template<typename T, size_t N>
         struct color {
-            TColor c;
-            std::optional<int> texture;
+            math::vector<T, N> value;
+            std::optional<std::shared_ptr<texture<T, N>>> texture;
         };
 
-        color<math::float3> albedo;
-        color<math::float3> emission;
+        color<float,3> albedo;
+        color<float,3> emission;
         float emissive_strength = 1.f;
-        color<float> metallic;
-        color<float> roughness;
-        color<float> ior;
-        color<math::float3> specular;
-        color<float> transmission;
+        color<float,1> metallic;
+        color<float,1> roughness;
+        color<float,1> ior;
+        color<float,3> specular;
+        color<float,1> transmission;
     };
 
     enum instance_type : int {
@@ -73,7 +74,6 @@ struct model {
     std::vector<luc::model::mesh> meshes;
     std::vector<luc::model::instance> instances;
     std::vector<luc::model::material> materials;
-    std::vector<luc::texture<float,3>> textures;
 };
 } // namespace luc
 

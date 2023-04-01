@@ -34,10 +34,6 @@ void scene::append_model(luc::model&& model)
     for (const auto& minst : model.instances) {
         if (minst.type == luc::model::camera_instance)
             continue;
-        // appending more than one model will screw
-        // up the texture indices in the materials
-        for (auto& tex : model.textures)
-            textures.push_back(std::move(tex));
         for (const auto& submesh : model.meshes[minst.id].meshes) {
             subscene sscene;
             sscene.transform = minst.transform;
@@ -238,29 +234,21 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
         const auto& scene = scenes[prim_id];
         scene::intersection result;
         if (scene.material.albedo.texture.has_value()) {
-            const auto& tex = textures[*scene.material.albedo.texture];
-            const auto x = (int)std::floor(math::map<float>(inter.texcoord.u, 0, 1, 0, (float)tex.buffer.width));
-            const auto y = (int)std::floor(math::map<float>(inter.texcoord.v, 0, 1, 0, (float)tex.buffer.height));
-            const auto xc = math::clamp(x, 0, tex.buffer.width - 1);
-            const auto yc = math::clamp(y, 0, tex.buffer.height - 1);
-            const auto p = tex.buffer.pixel(xc, yc);
+            const auto& tex = *scene.material.albedo.texture;
+            const auto p = tex->sample(inter.texcoord);
             const auto l = math::dot(inter.normal, dir);
             const auto r = p * l;
             result.color = r;
         }
         else {
-            const auto c = scene.material.albedo.c;
+            const auto c = scene.material.albedo.value;
             const auto l = math::dot(inter.normal, dir);
             const auto r = c * l;
             result.color = r;
         }
         if (scene.material.emission.texture.has_value()) {
-            const auto& tex = textures[*scene.material.emission.texture];
-            const auto x = (int)std::floor(math::map<float>(inter.texcoord.u, 0, 1, 0, (float)tex.buffer.width));
-            const auto y = (int)std::floor(math::map<float>(inter.texcoord.v, 0, 1, 0, (float)tex.buffer.height));
-            const auto xc = math::clamp(x, 0, tex.buffer.width - 1);
-            const auto yc = math::clamp(y, 0, tex.buffer.height - 1);
-            const auto p = tex.buffer.pixel(xc, yc);
+            const auto& tex = *scene.material.emission.texture;
+            const auto p = tex->sample(inter.texcoord);
             result.color += p;
         }
         return result;

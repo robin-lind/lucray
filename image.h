@@ -53,13 +53,32 @@ struct image {
     }
 };
 
-template<typename T, size_t N>
+struct SamplerNearest {
+    template<typename T, size_t N>
+    static auto sample(const image<math::vector<T, N>>& buffer, const math::float2& uv)
+    {
+        const auto x = (int)std::floor(math::map<float>(uv.u, 0, 1, 0, (float)buffer.width));
+        const auto y = (int)std::floor(math::map<float>(uv.v, 0, 1, 0, (float)buffer.height));
+        const auto xc = math::clamp(x, 0, buffer.width - 1);
+        const auto yc = math::clamp(y, 0, buffer.height - 1);
+        const auto result = buffer.pixel(xc, yc);
+        return result;
+    }
+};
+
+template<typename T, size_t N, typename Sampler = SamplerNearest>
 struct texture {
     image<math::vector<T, N>> buffer;
     texture() = default;
 
     texture(int width, int height) :
       buffer(width, height) {}
+
+    auto sample(const math::float2& uv)
+    {
+        const auto result = Sampler::sample(buffer, uv);
+        return result;
+    }
 };
 
 template<typename T, typename S>
@@ -96,16 +115,16 @@ math::vector<T, N> convert_pixel(const math::vector<S, N>& v)
 }
 
 template<typename S, typename T, size_t N>
-void load_raw_into_image(texture<T, N>& image, size_t channels, const void *data)
+void load_raw_into_image(image<math::vector<T, N>>& image, size_t channels, const void *data)
 {
     const auto c_max = std::min(N, channels);
     auto *read = (S *)data;
-    for (int y = 0; y < image.buffer.height; y++) {
-        for (int x = 0; x < image.buffer.width; x++) {
+    for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
             math::vector<T, N> result;
             for (int c = 0; c < c_max; c++)
                 result.values[c] = convert_pixel_type<T>(read[c]);
-            image.buffer.pixel(x, y, result);
+            image.pixel(x, y, result);
             read += channels;
         }
     }
