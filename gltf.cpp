@@ -313,9 +313,13 @@ luc::model load_gltf(std::filesystem::path& path)
         luc::model::material material;
         if (gmat.emissiveTexture.index > -1)
             material.emission.texture = gmat.emissiveTexture.index;
+        if (gmat.pbrMetallicRoughness.baseColorTexture.index > -1)
+            material.albedo.texture = gmat.pbrMetallicRoughness.baseColorTexture.index;
         for (const auto& value : gmat.values)
             if (value.first == "baseColorFactor")
                 material.albedo.c = math::float3((float)value.second.number_array[0], (float)value.second.number_array[1], (float)value.second.number_array[2]);
+            else if (value.first == "baseColorTexture")
+                LOG(INFO) << "baseColorTexture!!!!\n";
             else if (value.first == "metallicFactor")
                 material.metallic.c = (float)value.second.number_value;
             else if (value.first == "roughnessFactor")

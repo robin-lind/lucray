@@ -50,7 +50,6 @@ void scene::append_model(luc::model&& model)
                 return *(math::float3 *)(&v);
             };
             const auto triangle_count = submesh.indices.size() / 3;
-            math::double3 centerd;
             std::vector<bvh::BBox<float, 3>> bboxes(triangle_count);
             std::vector<bvh::Vec<float, 3>> centers(triangle_count);
             executor.for_each(0, triangle_count,
@@ -59,21 +58,15 @@ void scene::append_model(luc::model&& model)
                                       const auto& t0 = submesh.indices[i * 3 + 0];
                                       const auto& t1 = submesh.indices[i * 3 + 1];
                                       const auto& t2 = submesh.indices[i * 3 + 2];
-                                      const auto v0 = get_bvh_vec(submesh.vertices[t0]);
-                                      const auto v1 = get_bvh_vec(submesh.vertices[t1]);
-                                      const auto v2 = get_bvh_vec(submesh.vertices[t2]);
-                                      const bvh::Tri<float, 3> tri(v0, v1, v2);
-                                      const auto cc = tri.get_center();
-                                      const auto bb = tri.get_bbox();
-                                      centers[i] = cc;
-                                      bboxes[i] = bb;
-                                      centerd += math::double3(cc.values[0], cc.values[1], cc.values[2]);
-                                      sscene.bounds.extend(get_float3(bb.min));
-                                      sscene.bounds.extend(get_float3(bb.max));
+                                      const auto v0 = submesh.vertices[t0];
+                                      const auto v1 = submesh.vertices[t1];
+                                      const auto v2 = submesh.vertices[t2];
+                                      const math::bounds3 bounds(v0, v1, v2);
+                                      bboxes[i].min.values = bounds.min.E;
+                                      bboxes[i].max.values = bounds.max.E;
+                                      centers[i].values = ((v0 + v1 + v2) * (1.f / 3.f)).E;
                                   }
                               });
-            centerd /= (double)triangle_count;
-            sscene.center = math::float3((float)centerd.x, (float)centerd.y, (float)centerd.z);
 
             typename bvh::DefaultBuilder<bvh::Node<float, 3>>::Config config;
             config.quality = bvh::DefaultBuilder<bvh::Node<float, 3>>::Quality::High;
@@ -132,9 +125,9 @@ void scene::commit()
                                   tcenter += math::double3(c.x, c.y, c.z);
                               }
                               tcenter /= (double)scene.triangles.size();
+                              centers[i] = { (float)tcenter.x, (float)tcenter.y, (float)tcenter.z };
                               bboxes[i].min.values = tbox.min.E;
                               bboxes[i].max.values = tbox.max.E;
-                              centers[i] = { (float)tcenter.x, (float)tcenter.y, (float)tcenter.z };
                           }
                       });
 
@@ -244,10 +237,23 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
     if (prim_id != invalid_id) {
         const auto& scene = scenes[prim_id];
         scene::intersection result;
-        const auto c = scene.material.albedo.c;
-        const auto l = math::dot(inter.normal, dir);
-        const auto r = c * l;
-        result.color = r;
+        if (scene.material.albedo.texture.has_value()) {
+            const auto& tex = textures[*scene.material.albedo.texture];
+            const auto x = (int)std::floor(math::map<float>(inter.texcoord.u, 0, 1, 0, (float)tex.buffer.width));
+            const auto y = (int)std::floor(math::map<float>(inter.texcoord.v, 0, 1, 0, (float)tex.buffer.height));
+            const auto xc = math::clamp(x, 0, tex.buffer.width - 1);
+            const auto yc = math::clamp(y, 0, tex.buffer.height - 1);
+            const auto p = tex.buffer.pixel(xc, yc);
+            const auto l = math::dot(inter.normal, dir);
+            const auto r = p * l;
+            result.color = r;
+        }
+        else {
+            const auto c = scene.material.albedo.c;
+            const auto l = math::dot(inter.normal, dir);
+            const auto r = c * l;
+            result.color = r;
+        }
         if (scene.material.emission.texture.has_value()) {
             const auto& tex = textures[*scene.material.emission.texture];
             const auto x = (int)std::floor(math::map<float>(inter.texcoord.u, 0, 1, 0, (float)tex.buffer.width));

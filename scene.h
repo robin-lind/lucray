@@ -24,11 +24,8 @@
 #define SCENE_H
 
 #include <optional>
-#include "math/bounds.h"
 #include "math/math.h"
 #include "filesystem.h"
-#include "math/matrix.h"
-#include "math/vector.h"
 #include "model.h"
 #include "bvh.h"
 
@@ -72,11 +69,9 @@ struct scene {
     };
 
     struct subscene {
-        model::material material;
         math::matrix4 transform;
         math::matrix4 inverse;
-        math::float3 center;
-        math::bounds3 bounds;
+        model::material material;
         std::vector<triangle<float>> triangles;
         std::vector<triplet<math::float3>> normals;
         std::vector<triplet<math::float2>> texcoords;
