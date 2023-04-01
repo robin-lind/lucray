@@ -43,10 +43,8 @@
 #include "raylib.hpp"
 #include "aixlog.hpp"
 #include "camera.h"
-#include "load_model.h"
 #include "framebuffer.h"
 #include "parallel_for.h"
-#include "traversal.h"
 #include "filesystem.h"
 #include "scene.h"
 
