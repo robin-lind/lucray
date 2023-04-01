@@ -59,14 +59,35 @@ struct SamplerNearest {
     {
         const auto x = (int)std::floor(math::map<float>(uv.u, 0, 1, 0, (float)buffer.width));
         const auto y = (int)std::floor(math::map<float>(uv.v, 0, 1, 0, (float)buffer.height));
-        const auto xc = math::clamp(x, 0, buffer.width - 1);
-        const auto yc = math::clamp(y, 0, buffer.height - 1);
+        const auto xc = math::wrap(x, 0, buffer.width);
+        const auto yc = math::wrap(y, 0, buffer.height);
         const auto result = buffer.pixel(xc, yc);
         return result;
     }
 };
 
-template<typename T, size_t N, typename Sampler = SamplerNearest>
+struct SamplerBilinear {
+    template<typename T, size_t N>
+    static auto sample(const image<math::vector<T, N>>& buffer, const math::float2& uv)
+    {
+        const auto x = (int)std::floor(math::map<float>(uv.u, 0, 1, 0, (float)buffer.width));
+        const auto y = (int)std::floor(math::map<float>(uv.v, 0, 1, 0, (float)buffer.height));
+        const auto minx = math::wrap(x, 0, buffer.width);
+        const auto maxx = math::wrap(x + 1, 0, buffer.width);
+        const auto miny = math::wrap(y, 0, buffer.height);
+        const auto maxy = math::wrap(y + 1, 0, buffer.height);
+        const auto top_l = buffer.pixel(minx, miny);
+        const auto top_r = buffer.pixel(maxx, miny);
+        const auto bot_l = buffer.pixel(minx, maxy);
+        const auto bot_r = buffer.pixel(maxx, maxy);
+        const auto top = math::lerp(uv.u, top_l, top_r);
+        const auto bot = math::lerp(uv.u, bot_l, bot_r);
+        const auto result = math::lerp(uv.v, top, bot);
+        return result;
+    }
+};
+
+template<typename T, size_t N, typename Sampler = SamplerBilinear>
 struct texture {
     image<math::vector<T, N>> buffer;
     texture() = default;
