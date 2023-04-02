@@ -123,9 +123,11 @@ void process_meshes(luc::model& model, const gltf_ctx& gltf)
                     LOG(ERROR) << "primitive mode not implemented\n";
                     break;
             }
-            mesh.meshes.push_back(std::move(smesh));
+            if (!smesh.vertices.empty())
+                mesh.meshes.push_back(std::move(smesh));
         }
-        model.meshes.push_back(std::move(mesh));
+        if (!mesh.meshes.empty())
+            model.meshes.push_back(std::move(mesh));
     }
 }
 

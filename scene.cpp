@@ -25,6 +25,7 @@
 #include "math/math.h"
 #include <optional>
 #include <utility>
+#include <vector>
 
 namespace luc {
 void scene::append_model(luc::model&& model)
@@ -63,8 +64,10 @@ void scene::append_model(luc::model&& model)
             sscene.accelerator = bvh::DefaultBuilder<bvh::Node<float, 3>>::build(thread_pool, bboxes, centers, config);
 
             sscene.triangles.resize(triangle_count);
-            sscene.normals.resize(triangle_count);
-            sscene.texcoords.resize(triangle_count);
+            if (submesh.normals)
+                sscene.normals = std::vector<triplet<math::float3>>(triangle_count);
+            if (submesh.texcoords)
+                sscene.texcoords = std::vector<triplet<math::float2>>(triangle_count);
             executor.for_each(0, triangle_count,
                               [&](size_t begin, size_t end) {
                                   for (size_t i = begin; i < end; ++i) {
@@ -76,14 +79,34 @@ void scene::append_model(luc::model&& model)
                                       const auto v1 = submesh.vertices[t1];
                                       const auto v2 = submesh.vertices[t2];
                                       sscene.triangles[i] = triangle<float>(v0, v1, v2);
-                                      const auto n0 = submesh.normals[t0];
-                                      const auto n1 = submesh.normals[t1];
-                                      const auto n2 = submesh.normals[t2];
-                                      sscene.normals[i] = triplet<math::float3>(n0, n1, n2);
-                                      const auto u0 = submesh.texcoords[t0];
-                                      const auto u1 = submesh.texcoords[t1];
-                                      const auto u2 = submesh.texcoords[t2];
-                                      sscene.texcoords[i] = triplet<math::float2>(u0, u1, u2);
+                                  }
+                                  if (sscene.normals) {
+                                      const auto& snormals = *submesh.normals;
+                                      auto& normals = *sscene.normals;
+                                      for (size_t i = begin; i < end; ++i) {
+                                          const auto id = sscene.accelerator.prim_ids[i];
+                                          const auto& t0 = submesh.indices[id * 3 + 0];
+                                          const auto& t1 = submesh.indices[id * 3 + 1];
+                                          const auto& t2 = submesh.indices[id * 3 + 2];
+                                          const auto n0 = snormals[t0];
+                                          const auto n1 = snormals[t1];
+                                          const auto n2 = snormals[t2];
+                                          normals[i] = triplet<math::float3>(n0, n1, n2);
+                                      }
+                                  }
+                                  if (sscene.texcoords) {
+                                      const auto& stexcoords = *submesh.texcoords;
+                                      auto& texcoords = *sscene.texcoords;
+                                      for (size_t i = begin; i < end; ++i) {
+                                          const auto id = sscene.accelerator.prim_ids[i];
+                                          const auto& t0 = submesh.indices[id * 3 + 0];
+                                          const auto& t1 = submesh.indices[id * 3 + 1];
+                                          const auto& t2 = submesh.indices[id * 3 + 2];
+                                          const auto u0 = stexcoords[t0];
+                                          const auto u1 = stexcoords[t1];
+                                          const auto u2 = stexcoords[t2];
+                                          texcoords[i] = triplet<math::float2>(u0, u1, u2);
+                                      }
                                   }
                               });
             scenes.push_back(std::move(sscene));
@@ -187,14 +210,19 @@ std::optional<scene::subscene::intersection> scene::subscene::intersect(const ma
         const auto& tri = triangles[prim_id];
         result.position = tri.p0 - tri.e1 * inter.uv.u + tri.e2 * inter.uv.v;
 
-        const auto& triplet_u = texcoords[prim_id];
-        result.texcoord = triplet_u.p0 - triplet_u.e1 * inter.uv.u + triplet_u.e2 * inter.uv.v;
-
-        const auto& triplet_n = normals[prim_id];
-        result.normal = triplet_n.p0 - triplet_n.e1 * inter.uv.u + triplet_n.e2 * inter.uv.v;
-
-        if (math::dot(result.normal, tri.n) < 0.f)
-            result.normal = -result.normal;
+        if (texcoords.has_value()) {
+            const auto& triplet_u = (*texcoords)[prim_id];
+            result.texcoord = triplet_u.p0 - triplet_u.e1 * inter.uv.u + triplet_u.e2 * inter.uv.v;
+        }
+        if (normals.has_value()) {
+            const auto& triplet_n = (*normals)[prim_id];
+            result.normal = triplet_n.p0 - triplet_n.e1 * inter.uv.u + triplet_n.e2 * inter.uv.v;
+            if (math::dot(result.normal, tri.n) < 0.f)
+                result.normal = -result.normal;
+        }
+        else {
+            result.normal = tri.n;
+        }
         result.normal = math::mul(transform, math::float4(result.normal, 0.f)).xyz;
         result.normal = math::normalize(result.normal);
 

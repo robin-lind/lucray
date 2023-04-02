@@ -36,8 +36,8 @@ struct model {
         struct submesh {
             std::vector<unsigned int> indices;
             std::vector<math::float3> vertices;
-            std::vector<math::float3> normals;
-            std::vector<math::float2> texcoords;
+            std::optional<std::vector<math::float3>> normals;
+            std::optional<std::vector<math::float2>> texcoords;
             int material;
         };
 

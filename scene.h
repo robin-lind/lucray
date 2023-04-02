@@ -74,8 +74,8 @@ struct scene {
         math::matrix4 inverse;
         model::material material;
         std::vector<triangle<float>> triangles;
-        std::vector<triplet<math::float3>> normals;
-        std::vector<triplet<math::float2>> texcoords;
+        std::optional<std::vector<triplet<math::float3>>> normals;
+        std::optional<std::vector<triplet<math::float2>>> texcoords;
         bvh::Bvh<bvh::Node<float, 3>> accelerator;
 
         struct intersection {
