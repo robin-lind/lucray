@@ -26,7 +26,8 @@
 #include <memory>
 #include <optional>
 #include <vector>
-#include "math/math.h"
+#include "math/vector.h"
+#include "math/matrix.h"
 #include "image.h"
 #include "camera.h"
 

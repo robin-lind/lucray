@@ -1,5 +1,6 @@
 #pragma once
-#include "math/math.h"
+#include "math/vector.h"
+#include "math/utils.h"
 #include <vector>
 #include <thread>
 #include <functional>

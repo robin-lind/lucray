@@ -20,26 +20,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "filesystem.h"
-#include "gltf.h"
+#include "math/vector.h"
+#include "scene.h"
 
 namespace luc {
 
-namespace inner {
-luc::model load_obj(std::filesystem::path& path)
+math::float3 scene_light(const luc::scene& scene, const math::float3& ray_org, const math::float3& ray_dir)
 {
-    return luc::model();
-}
-} // namespace inner
-
-luc::model load_file(std::filesystem::path path)
-{
-    const auto ext = path.extension();
-    luc::model model;
-    if (ext == ".obj")
-        model = inner::load_obj(path);
-    else if (ext == ".glb" || ext == ".gltf")
-        model = inner::load_gltf(path);
-    return model;
+    math::float3 throughput(1.f);
+    math::float3 radiance(0.f);
+    auto add_light = [&radiance, &throughput](const math::float3& light) {
+        radiance += throughput * light;
+    };
+    const int max_depth = 5;
+    for (int depth = 0; depth < max_depth; depth++) {
+        const auto hit = scene.intersect(ray_org, ray_dir);
+        if (hit) {
+            const auto l = math::dot(hit->normal_s, ray_dir);
+            radiance += hit->albedo * l;
+            if (hit->emission.has_value())
+                radiance += *hit->emission;
+        }
+        break;
+    }
+    return radiance;
 }
 } // namespace luc

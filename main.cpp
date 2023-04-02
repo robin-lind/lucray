@@ -39,7 +39,7 @@
 #include <filesystem>
 #include <vector>
 #include "argh/argh.h"
-#include "math/math.h"
+#include "math/vector.h"
 #include "raylib.hpp"
 #include "aixlog.hpp"
 #include "camera.h"
@@ -47,6 +47,10 @@
 #include "parallel_for.h"
 #include "filesystem.h"
 #include "scene.h"
+
+namespace luc {
+math::float3 scene_light(const luc::scene& scene, const math::float3& ray_org, const math::float3& ray_dir);
+} // namespace luc
 
 int main(int argc, char *argv[])
 {
@@ -131,11 +135,7 @@ int main(int argc, char *argv[])
                     for (auto& sample : samples) {
                         math::float3 ray_org, ray_dir;
                         std::tie(ray_org, ray_dir) = scene.cameras[camera_id].ray(transform(sample.uv));
-                        const auto hit = scene.intersect(ray_org, ray_dir);
-                        if (hit.has_value())
-                            color += hit->color * sample.z;
-                        else
-                            color += math::float3(.7f);
+                        color += luc::scene_light(scene, ray_org, ray_dir);
                     }
                     framebuffer.pixel(x, y) = color;
                 };

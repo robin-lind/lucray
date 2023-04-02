@@ -24,7 +24,8 @@
 #include "aixlog.hpp"
 #include "camera.h"
 #include "image.h"
-#include "math/math.h"
+#include "math/vector.h"
+#include "math/matrix.h"
 #include "tinygltf/tiny_gltf.h"
 #include <memory>
 

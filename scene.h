@@ -24,7 +24,8 @@
 #define SCENE_H
 
 #include <optional>
-#include "math/math.h"
+#include "math/vector.h"
+#include "math/matrix.h"
 #include "filesystem.h"
 #include "model.h"
 #include "bvh.h"
@@ -66,7 +67,11 @@ union triplet {
 
 struct scene {
     struct intersection {
-        math::float3 color;
+        math::float3 position;
+        math::float3 normal_g;
+        math::float3 normal_s;
+        math::float3 albedo;
+        std::optional<math::float3> emission;
     };
 
     struct subscene {
@@ -80,7 +85,8 @@ struct scene {
 
         struct intersection {
             math::float3 position;
-            math::float3 normal;
+            math::float3 normal_g;
+            math::float3 normal_s;
             math::float2 texcoord;
             float distance = std::numeric_limits<float>::max();
         };

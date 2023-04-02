@@ -11,8 +11,9 @@ tinyexr/deps/miniz/miniz.c
 set (SRC_LIST
 main.cpp
 implementation.cpp
-filesystem.cpp
 scene.cpp
+scene_light.cpp
+filesystem.cpp
 gltf.cpp
 ${EXTERN_SRC_LIST}
 )

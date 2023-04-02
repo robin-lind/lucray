@@ -22,7 +22,9 @@
 
 #include "scene.h"
 #include "aixlog.hpp"
-#include "math/math.h"
+#include "math/vector.h"
+#include "math/matrix.h"
+#include "math/bounds.h"
 #include <optional>
 #include <utility>
 #include <vector>
@@ -214,17 +216,18 @@ std::optional<scene::subscene::intersection> scene::subscene::intersect(const ma
             const auto& triplet_u = (*texcoords)[prim_id];
             result.texcoord = triplet_u.p0 - triplet_u.e1 * inter.uv.u + triplet_u.e2 * inter.uv.v;
         }
+        result.normal_g = tri.n;
         if (normals.has_value()) {
             const auto& triplet_n = (*normals)[prim_id];
-            result.normal = triplet_n.p0 - triplet_n.e1 * inter.uv.u + triplet_n.e2 * inter.uv.v;
-            if (math::dot(result.normal, tri.n) < 0.f)
-                result.normal = -result.normal;
+            result.normal_s = triplet_n.p0 - triplet_n.e1 * inter.uv.u + triplet_n.e2 * inter.uv.v;
+            if (math::dot(result.normal_s, tri.n) < 0.f)
+                result.normal_s = -result.normal_s;
         }
         else {
-            result.normal = tri.n;
+            result.normal_s = tri.n;
         }
-        result.normal = math::mul(transform, math::float4(result.normal, 0.f)).xyz;
-        result.normal = math::normalize(result.normal);
+        result.normal_s = math::mul(transform, math::float4(result.normal_s, 0.f)).xyz;
+        result.normal_s = math::normalize(result.normal_s);
 
         return result;
     }
@@ -255,27 +258,28 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
     if (prim_id != invalid_id) {
         const auto& scene = scenes[prim_id];
         scene::intersection result;
+        result.position = inter.position;
+        result.normal_g = inter.normal_g;
+        result.normal_s = inter.normal_s;
         if (scene.material.albedo.texture.has_value()) {
             const auto& tex = *scene.material.albedo.texture;
-            const auto p = tex->sample(inter.texcoord);
-            const auto l = math::dot(inter.normal, dir);
-            const auto r = p * l;
-            result.color = r;
+            const auto albedo = tex->sample(inter.texcoord);
+            result.albedo = albedo;
         }
         else {
-            const auto c = scene.material.albedo.value;
-            const auto l = math::dot(inter.normal, dir);
-            const auto r = c * l;
-            result.color = r;
+            const auto albedo = scene.material.albedo.value;
+            result.albedo = albedo;
         }
         if (scene.material.emission.texture.has_value()) {
             const auto& tex = *scene.material.emission.texture;
-            const auto p = tex->sample(inter.texcoord);
-            result.color += p * scene.material.emissive_strength;
+            const auto emission = tex->sample(inter.texcoord);
+            if (math::length_squared(emission) > 0)
+                result.emission = emission * scene.material.emissive_strength;
         }
         else {
-            const auto p = scene.material.emission.value;
-            result.color += p * scene.material.emissive_strength;
+            const auto emission = scene.material.emission.value;
+            if (math::length_squared(emission) > 0)
+                result.emission = emission * scene.material.emissive_strength;
         }
         return result;
     }
