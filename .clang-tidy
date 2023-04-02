@@ -8,4 +8,3 @@ CheckOptions:
   - key:             readability-identifier-length.IgnoredParameterNames
     value:           '^[a-z]_?$'
 ...
-

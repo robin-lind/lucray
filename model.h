@@ -28,6 +28,7 @@
 #include <vector>
 #include "math/math.h"
 #include "image.h"
+#include "camera.h"
 
 namespace luc {
 struct model {
@@ -60,20 +61,15 @@ struct model {
         color<float,1> transmission;
     };
 
-    enum instance_type : int {
-        mesh_instance,
-        camera_instance
-    };
-
     struct instance {
         math::matrix4 transform;
-        instance_type type;
         int id;
     };
 
     std::vector<luc::model::mesh> meshes;
     std::vector<luc::model::instance> instances;
     std::vector<luc::model::material> materials;
+    std::vector<luc::ray_camera<float>> cameras;
 };
 } // namespace luc
 

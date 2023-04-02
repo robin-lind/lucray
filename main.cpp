@@ -56,18 +56,20 @@ int main(int argc, char *argv[])
 
     const argh::parser cmdl(argc, argv);
 
-    int spp = 1, width = 1, height = 1;
+    int width = 1, height = 1, spp = 1, camera_id = 0;
     if (!(cmdl("w") >> width))
-        LOG(WARNING) << "No image width provided! Defaulting to: " << width << " (-w=N)!" << std::endl;
+        LOG(WARNING) << "No image width provided! Defaulting to: " << width << " (-w=N)!\n";
     if (!(cmdl("h") >> height))
-        LOG(WARNING) << "No image height provided! Defaulting to: " << height << " (-h=N)!" << std::endl;
+        LOG(WARNING) << "No image height provided! Defaulting to: " << height << " (-h=N)!\n";
     if (!(cmdl("s") >> spp))
-        LOG(WARNING) << "No samples per pixel provided! Defaulting to: " << spp << " (-s=N)!" << std::endl;
+        LOG(WARNING) << "No samples per pixel provided! Defaulting to: " << spp << " (-s=N)!\n";
     spp = std::max(spp, 1);
+    if (!(cmdl("c") >> camera_id))
+        LOG(WARNING) << "No camera selected! Defaulting to: " << camera_id << " (-c=N)!\n";
 
     const std::vector<std::string> positional(std::begin(cmdl.pos_args()) + 1, std::end(cmdl.pos_args()));
     if (positional.empty()) {
-        LOG(ERROR) << "No input files!" << std::endl;
+        LOG(ERROR) << "No input files!\n";
         return 1;
     }
     std::vector<std::string> input_files;
@@ -81,10 +83,16 @@ int main(int argc, char *argv[])
         scene.append_model(luc::load_file(file_path));
     scene.commit();
 
-    const float fov_x = 70.f;
-    const math::float3 eye(0.f, 1.31f, 4.7f);
-    const math::float3 target(0.f, 0.f, -2.72755f);
-    const ray_camera<float> camera(width, height, eye, target, { 0.f, 1.f, 0.f }, fov_x);
+    if (scene.cameras.empty()) {
+        LOG(ERROR) << "No cameras in scene!\n";
+        const float fov_x = 43.f * 0.0174532793f;
+        const math::float3 root_max(scene.accelerator.get_root().get_bbox().max.values);
+        const math::float3 eye = root_max * 2.f;
+        const math::float3 target(0.f);
+        const math::float3 up(0.f, 1.f, 0.f);
+        scene.cameras.emplace_back((float)width / (float)height, eye, target, up, fov_x);
+    }
+
     luc::framebuffer<math::float3> framebuffer(width, height);
     bool done = false;
     abort_token aborter;
@@ -107,7 +115,7 @@ int main(int argc, char *argv[])
                       1.f / (float)sample_count_true,
                       ((float)samples.size() + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)sample_count_true);
             auto start = std::chrono::steady_clock::now();
-            std::cout << "frame(" << frame << ")";
+            LOG(INFO) << "frame(" << frame << ")";
             const auto domain = generate_parallel_for_domain(width, height);
             auto tile_func = [&](const work_block<int>& block) {
                 static thread_local work_range<int> *active_range = nullptr;
@@ -123,10 +131,12 @@ int main(int argc, char *argv[])
                     math::float3 color;
                     for (auto& sample : samples) {
                         math::float3 ray_org, ray_dir;
-                        std::tie(ray_org, ray_dir) = camera.ray(transform(sample.uv));
+                        std::tie(ray_org, ray_dir) = scene.cameras[camera_id].ray(transform(sample.uv));
                         const auto hit = scene.intersect(ray_org, ray_dir);
                         if (hit.has_value())
                             color += hit->color * sample.z;
+                        else
+                            color += math::float3(.7f);
                     }
                     framebuffer.pixel(x, y) = color;
                 };
@@ -136,7 +146,7 @@ int main(int argc, char *argv[])
             frame++;
             const auto end = std::chrono::steady_clock::now();
             const std::chrono::duration<double> elapsed_seconds = end - start;
-            std::cout << " in: " << elapsed_seconds.count() << "s" << std::endl;
+            LOG(INFO) << " in: " << elapsed_seconds.count() << "s\n";
             for (auto *range : active_ranges)
                 delete range;
             active_ranges.clear();

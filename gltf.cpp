@@ -22,8 +22,9 @@
 
 #include "gltf.h"
 #include "aixlog.hpp"
+#include "camera.h"
 #include "image.h"
-#include "math/vector.h"
+#include "math/math.h"
 #include "tinygltf/tiny_gltf.h"
 #include <memory>
 
@@ -134,17 +135,6 @@ void process_instances(luc::model& model, const gltf_ctx& gltf)
     for (const auto& gnode : gltf.model.nodes) {
         LOG(INFO) << "Instance: " << gnode.name << "\n";
         luc::model::instance instance;
-        if (gnode.mesh > -1) {
-            instance.type = luc::model::instance_type::mesh_instance;
-            instance.id = gnode.mesh;
-        }
-        else if (gnode.camera > -1) {
-            instance.type = luc::model::instance_type::camera_instance;
-            instance.id = gnode.camera;
-        }
-        else {
-            LOG(ERROR) << "unknown instance type\n";
-        }
         if (!gnode.translation.empty()) {
             const auto translation = math::translation(math::float3((float)gnode.translation[0], (float)gnode.translation[1], (float)gnode.translation[2]));
             instance.transform = math::mul(instance.transform, translation);
@@ -157,7 +147,24 @@ void process_instances(luc::model& model, const gltf_ctx& gltf)
             const auto rot = math::quat_to_matrix(math::float4((float)gnode.rotation[0], (float)gnode.rotation[1], (float)gnode.rotation[2], (float)gnode.rotation[3]));
             instance.transform = math::mul(instance.transform, rot);
         }
-        model.instances.push_back(instance);
+        if (gnode.mesh > -1) {
+            instance.id = gnode.mesh;
+            model.instances.push_back(instance);
+        }
+        else if (gnode.camera > -1) {
+            const auto cam = gltf.model.cameras[gnode.camera];
+            const auto pos = instance.transform.w.xyz;
+            const auto up = math::mul(instance.transform, math::float4(0.f, 1.f, 0.f, 0.f)).xyz;
+            const auto dir = math::mul(instance.transform, math::float4(0.f, 0.f, -1.f, 0.f)).xyz;
+            const auto target = pos + dir;
+            const auto aspect = (float)cam.perspective.aspectRatio;
+            const auto yfov = (float)cam.perspective.yfov;
+            ray_camera<float> camera(aspect, pos, target, up, yfov);
+            model.cameras.push_back(camera);
+        }
+        else {
+            LOG(ERROR) << "unknown instance type\n";
+        }
     }
 }
 

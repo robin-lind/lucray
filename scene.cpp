@@ -31,20 +31,14 @@ void scene::append_model(luc::model&& model)
 {
     bvh::ThreadPool thread_pool;
     bvh::ParallelExecutor executor(thread_pool);
+    for (const auto& cam : model.cameras)
+        cameras.push_back(cam);
     for (const auto& minst : model.instances) {
-        if (minst.type == luc::model::camera_instance)
-            continue;
         for (const auto& submesh : model.meshes[minst.id].meshes) {
             subscene sscene;
             sscene.transform = minst.transform;
             sscene.inverse = math::inverse(minst.transform);
             sscene.material = model.materials[submesh.material];
-            auto get_bvh_vec = [&](const math::float3 v) {
-                return *(bvh::Vec<float, 3> *)(&v);
-            };
-            auto get_float3 = [&](const bvh::Vec<float, 3> v) {
-                return *(math::float3 *)(&v);
-            };
             const auto triangle_count = submesh.indices.size() / 3;
             std::vector<bvh::BBox<float, 3>> bboxes(triangle_count);
             std::vector<bvh::Vec<float, 3>> centers(triangle_count);

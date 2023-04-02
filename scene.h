@@ -28,6 +28,7 @@
 #include "filesystem.h"
 #include "model.h"
 #include "bvh.h"
+#include "camera.h"
 
 namespace luc {
 
@@ -89,6 +90,7 @@ struct scene {
 
     std::vector<subscene> scenes;
     std::vector<luc::texture<float, 3>> textures;
+    std::vector<ray_camera<float>> cameras;
     bvh::Bvh<bvh::Node<float, 3>> accelerator;
 
     void append_model(luc::model&& model);
