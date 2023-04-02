@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
         const math::float3 eye = root_max * 2.f;
         const math::float3 target(0.f);
         const math::float3 up(0.f, 1.f, 0.f);
-        scene.cameras.emplace_back((float)width / (float)height, eye, target, up, fov_x);
+        scene.cameras.emplace_back(eye, target, up, (float)width / (float)height, fov_x);
     }
 
     luc::framebuffer<math::float3> framebuffer(width, height);

@@ -159,7 +159,7 @@ void process_instances(luc::model& model, const gltf_ctx& gltf)
             const auto target = pos + dir;
             const auto aspect = (float)cam.perspective.aspectRatio;
             const auto yfov = (float)cam.perspective.yfov;
-            ray_camera<float> camera(aspect, pos, target, up, yfov);
+            const ray_camera<float> camera(pos, target, up, aspect, yfov);
             model.cameras.push_back(camera);
         }
         else {

@@ -34,44 +34,28 @@ template<typename T>
 struct ray_camera {
     math::vector<T, 3> pos;
     math::vector<T, 3> X, Y, Z;
-    float backfocus;
-    float inv_aspect;
+    T backfocus;
+    T inv_aspect;
 
     ray_camera() = default;
 
-    ray_camera(float aspect, math::vector<T, 3> eye, math::vector<T, 3> target, math::vector<T, 3> up, const float yfov)
+    ray_camera(math::vector<T, 3> eye, math::vector<T, 3> target, math::vector<T, 3> up, T aspect, T yfov)
     {
         pos = eye;
         Z = math::normalize(target - eye);
         X = math::normalize(math::cross(Z, up));
         Y = math::normalize(math::cross(Z, X));
-        const auto pi = std::numbers::pi_v<float>;
-        const auto true_fov_x = 70.f * .5f * pi / 180.f;
-        const auto true_backfocus = .5f / std::tan(true_fov_x);
-        const auto half_pi = std::numbers::pi_v<float> * .5f;
-        const auto half_fov = .5f * yfov;
 
-        const auto sensor_height = 1.f;
-        const auto half_sensor_height = sensor_height * .5f;
-        const auto sensor_width = aspect;
-        const auto half_sensor_width = sensor_width * .5f;
+        constexpr auto half_pi = std::numbers::pi_v<double> * .5;
+        const auto half_sh = .5;
+        const auto half_sw = static_cast<double>(aspect) * .5;
+        const auto c = half_sh / std::tan(static_cast<double>(yfov) * .5);
+        const auto r = std::sqrt(c * c + half_sw * half_sw);
+        const auto xfov = half_pi - std::asin(c / r);
+        const auto bf = half_sh / std::tan(xfov);
 
-        auto A = half_fov;
-        auto B = half_pi;
-        auto C = pi - A - B;
-
-        auto c = half_sensor_height / std::tan(A);
-
-        auto R = half_pi;
-        auto q = half_sensor_width;
-        auto p = c;
-
-        auto r = std::sqrt((p * p) + (q * q) - 2.f * p * q * std::cos(R));
-        auto P = std::asin((std::sin(R) * p) / r);
-        auto Q = pi - P - R;
-
-        backfocus = half_sensor_height / std::tan(Q);
-        inv_aspect = 1.f / aspect;
+        backfocus = static_cast<T>(bf);
+        inv_aspect = static_cast<T>(1) / aspect;
     }
 
     std::pair<math::vector<T, 3>, math::vector<T, 3>> ray(math::vector<T, 2> uv) const
