@@ -88,9 +88,8 @@ int main(int argc, char *argv[])
         const float fov_x = 43.f * 0.0174532793f;
         const math::float3 root_max(scene.accelerator.get_root().get_bbox().max.values);
         const math::float3 eye = root_max * 2.f;
-        const math::float3 target(0.f);
         const math::float3 up(0.f, 1.f, 0.f);
-        scene.cameras.emplace_back(eye, target, up, (float)width / (float)height, fov_x);
+        scene.cameras.emplace_back(eye, -eye, up, (float)width / (float)height, fov_x);
     }
 
     luc::framebuffer<math::float3> framebuffer(width, height);

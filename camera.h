@@ -34,18 +34,11 @@ template<typename T>
 struct ray_camera {
     math::vector<T, 3> pos;
     math::vector<T, 3> X, Y, Z;
-    T backfocus;
-    T inv_aspect;
 
     ray_camera() = default;
 
-    ray_camera(math::vector<T, 3> eye, math::vector<T, 3> target, math::vector<T, 3> up, T aspect, T yfov)
+    ray_camera(const math::vector<T, 3>& eye, const math::vector<T, 3>& dir, const math::vector<T, 3>& up, T aspect, T yfov) : pos(eye)
     {
-        pos = eye;
-        Z = math::normalize(target - eye);
-        X = math::normalize(math::cross(Z, up));
-        Y = math::normalize(math::cross(Z, X));
-
         constexpr auto half_pi = std::numbers::pi_v<double> * .5;
         const auto half_sh = .5;
         const auto half_sw = static_cast<double>(aspect) * .5;
@@ -54,14 +47,14 @@ struct ray_camera {
         const auto xfov = half_pi - std::asin(c / r);
         const auto bf = half_sh / std::tan(xfov);
 
-        backfocus = static_cast<T>(bf);
-        inv_aspect = static_cast<T>(1) / aspect;
+        Z = math::normalize(dir) * static_cast<T>(bf);
+        X = math::normalize(math::cross(Z, up));
+        Y = math::normalize(math::cross(Z, X)) / aspect;
     }
 
     std::pair<math::vector<T, 3>, math::vector<T, 3>> ray(math::vector<T, 2> uv) const
     {
-        const auto image_plane = math::normalize(math::vector<T, 3>(uv.u, uv.v * inv_aspect, backfocus));
-        const auto dir = (X * image_plane.x) + (Y * image_plane.y) + (Z * image_plane.z);
+        const auto dir = X * uv.u + Y * uv.v + Z;
         return std::make_pair(pos, dir);
     }
 };
