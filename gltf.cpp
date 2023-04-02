@@ -179,6 +179,7 @@ void process_materials(luc::model& model, const gltf_ctx& gltf)
         material.albedo.value = math::float3((float)albedo[0], (float)albedo[1], (float)albedo[2]);
         material.metallic.value.t = (float)gmat.pbrMetallicRoughness.metallicFactor;
         material.roughness.value.t = (float)gmat.pbrMetallicRoughness.roughnessFactor;
+        material.emission.value = math::float3((float)gmat.emissiveFactor[0], (float)gmat.emissiveFactor[1], (float)gmat.emissiveFactor[2]);
         if (gmat.emissiveTexture.index > -1)
             material.emission.texture = gltf.textures[gmat.emissiveTexture.index];
         if (gmat.pbrMetallicRoughness.baseColorTexture.index > -1)

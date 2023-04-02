@@ -271,7 +271,11 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
         if (scene.material.emission.texture.has_value()) {
             const auto& tex = *scene.material.emission.texture;
             const auto p = tex->sample(inter.texcoord);
-            result.color += p;
+            result.color += p * scene.material.emissive_strength;
+        }
+        else {
+            const auto p = scene.material.emission.value;
+            result.color += p * scene.material.emissive_strength;
         }
         return result;
     }
