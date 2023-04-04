@@ -25,8 +25,6 @@
 
 #include "math/vector.h"
 #include <numbers>
-#include <utility>
-#include <numeric>
 
 namespace luc {
 

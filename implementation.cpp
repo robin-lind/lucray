@@ -26,8 +26,8 @@
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NOEXCEPTION
 #define JSON_NOEXCEPTION
-// #define STB_IMAGE_IMPLEMENTATION
-// #define STB_IMAGE_WRITE_IMPLEMENTATION 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION 
 #define TINYEXR_IMPLEMENTATION
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "tinygltf/tiny_gltf.h"

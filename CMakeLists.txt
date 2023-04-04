@@ -6,6 +6,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set (EXTERN_SRC_LIST
 tinyexr/deps/miniz/miniz.c
+glad/src/glad.c
 )
 
 set (SRC_LIST
@@ -21,10 +22,12 @@ ${EXTERN_SRC_LIST}
 set (INCLUDE_LIST
 tinyexr/deps/miniz
 aixlog/include
+glad/include
 )
 
-add_subdirectory("raylib")
+find_package(glfw3 3.3 REQUIRED)
+find_package(OpenGL REQUIRED)
 
 add_executable(lucray ${SRC_LIST})
 target_include_directories(lucray PUBLIC ${INCLUDE_LIST})
-target_link_libraries(lucray raylib)
+target_link_libraries(lucray glfw OpenGL::GL)

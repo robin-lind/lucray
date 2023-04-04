@@ -211,23 +211,27 @@ std::optional<scene::subscene::intersection> scene::subscene::intersect(const ma
 
         const auto& tri = triangles[prim_id];
         result.position = tri.p0 - tri.e1 * inter.uv.u + tri.e2 * inter.uv.v;
+        result.position = math::mul(transform, math::float4(result.position, 1.f)).xyz;
 
         if (texcoords.has_value()) {
             const auto& triplet_u = (*texcoords)[prim_id];
             result.texcoord = triplet_u.p0 - triplet_u.e1 * inter.uv.u + triplet_u.e2 * inter.uv.v;
         }
-        result.normal_g = tri.n;
+        result.normal_g = math::mul(transform, math::float4(tri.n, 0.f)).xyz;
+        result.normal_g = math::normalize(result.normal_g);
+        if (math::dot(result.normal_g, dir) > 0.f)
+            result.normal_g = -result.normal_g;
         if (normals.has_value()) {
             const auto& triplet_n = (*normals)[prim_id];
             result.normal_s = triplet_n.p0 - triplet_n.e1 * inter.uv.u + triplet_n.e2 * inter.uv.v;
-            if (math::dot(result.normal_s, tri.n) < 0.f)
+            result.normal_s = math::mul(transform, math::float4(result.normal_s, 0.f)).xyz;
+            result.normal_s = math::normalize(result.normal_s);
+            if (math::dot(result.normal_s, result.normal_g) < 0.f)
                 result.normal_s = -result.normal_s;
         }
         else {
-            result.normal_s = tri.n;
+            result.normal_s = result.normal_g;
         }
-        result.normal_s = math::mul(transform, math::float4(result.normal_s, 0.f)).xyz;
-        result.normal_s = math::normalize(result.normal_s);
 
         return result;
     }
@@ -281,6 +285,11 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
             if (math::length_squared(emission) > 0)
                 result.emission = emission * scene.material.emissive_strength;
         }
+        result.specular = result.albedo;
+        result.metallic = scene.material.metallic.value;
+        result.roughness = scene.material.roughness.value;
+        result.ior = scene.material.ior.value;
+        result.transmission = scene.material.transmission.value;
         return result;
     }
     return std::nullopt;
