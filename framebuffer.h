@@ -45,8 +45,6 @@ struct image_n {
 template<typename T>
 struct framebuffer {
     int width, height;
-    std::vector<T> pixels;
-
     image_n<float, 3> combined;
     image_n<float, 3> albedo;
     image_n<float, 3> shading_normal;
@@ -62,11 +60,6 @@ struct framebuffer {
     framebuffer() = default;
 
     framebuffer(int _width, int _height) :
-      width(_width), height(_height), pixels(width * height), combined(width, height), albedo(width, height), shading_normal(width, height), geometry_normal(width, height), position(width, height), emission(width, height), specular(width, height), metallic(width, height), roughness(width, height), ior(width, height), transmission(width, height) {}
-
-    T& pixel(int x, int y)
-    {
-        return pixels[x + y * width];
-    }
+      width(_width), height(_height), combined(width, height), albedo(width, height), shading_normal(width, height), geometry_normal(width, height), position(width, height), emission(width, height), specular(width, height), metallic(width, height), roughness(width, height), ior(width, height), transmission(width, height) {}
 };
 } // namespace luc

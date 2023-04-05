@@ -53,7 +53,8 @@ struct ray_camera {
     std::pair<math::vector<T, 3>, math::vector<T, 3>> ray(math::vector<T, 2> uv) const
     {
         const auto dir = X * uv.u + Y * uv.v + Z;
-        return std::make_pair(pos, dir);
+        const auto ndir = math::normalize(dir);
+        return std::make_pair(pos, ndir);
     }
 };
 

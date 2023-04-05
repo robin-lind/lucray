@@ -52,12 +52,18 @@ math::float3 scene_light(const luc::scene& scene, sampler<float>& rng, const mat
                 break;
             }
             const math::ortho_normal_base ortho(hit->normal_g);
-            const auto l = math::dot(hit->normal_s, dir);
+            const auto l = math::dot(hit->normal_s, -dir);
             throughput *= l * hit->albedo;
             const std::uniform_real_distribution<float> uni(0, 1);
             const math::float2 uv(rng.sample());
             dir = ortho.to_world(cosine_direction(uv));
-            org = hit->position;
+
+            const auto epsilon = std::numeric_limits<float>::epsilon();
+            const math::float3 offset(
+              hit->normal_g.x > 0 ? epsilon : -epsilon,
+              hit->normal_g.y > 0 ? epsilon : -epsilon,
+              hit->normal_g.z > 0 ? epsilon : -epsilon);
+            org = hit->position + offset;
             continue;
         }
         break;

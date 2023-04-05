@@ -174,7 +174,6 @@ int main(int argc, char *argv[])
                             transmission += *hit->transmission * sample.z;
                         }
                     }
-                    framebuffer.pixel(x, y) = combined;
                     framebuffer.combined.set(x, y, combined);
                     framebuffer.albedo.set(x, y, albedo);
                     framebuffer.shading_normal.set(x, y, shading_normal);
@@ -254,6 +253,17 @@ int main(int argc, char *argv[])
       "uniform vec3 color_mul;\n"
       "uniform vec3 color_lum;\n"
       "out vec4 output_color;\n"
+      "float sRGB_gamma(float n)\n"
+      "{\n"
+      "	return n < 0.0031308f ? (n * 12.92f) : ((1.055f * pow(n, 1.0f / 2.4f)) - 0.055f);\n"
+      "}\n"
+      "vec3 sRGB_gamma3f(vec3 n)\n"
+      "{\n"
+      "	return vec3(\n"
+      "	 sRGB_gamma(n.x),\n"
+      "	 sRGB_gamma(n.y),\n"
+      "	 sRGB_gamma(n.z));\n"
+      "}\n"
       "void main()\n"
       "{\n"
       "    float red = texture(texture_r, frag_uv).r;\n"
@@ -262,7 +272,8 @@ int main(int argc, char *argv[])
       "    vec3 rgb_image = vec3(red, green, blue) * color_mul;\n"
       "    vec3 lum_image = vec3(red, red, red) * color_lum;\n"
       "    vec3 color = rgb_image + lum_image;\n"
-      "    output_color = vec4(color, 1.);\n"
+      "    vec3 srgb = sRGB_gamma3f(color);\n"
+      "    output_color = vec4(srgb, 1.);\n"
       "}\n";
 
     auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);

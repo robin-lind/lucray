@@ -134,16 +134,22 @@ math::vector<T, N> convert_pixel(const math::vector<S, N>& v)
     return result;
 }
 
-template<typename S, typename T, size_t N>
+template<typename S, typename T, size_t N, bool sRGB = true>
 void load_raw_into_image(image<math::vector<T, N>>& image, size_t channels, const void *data)
 {
+    auto inv_srbg = [&](T n) {
+        return n < 0.04045f ? (n / 12.92f) : std::pow(((n + 0.055f) / 1.055f), 2.4f);
+    };
     const auto c_max = std::min(N, channels);
     auto *read = (S *)data;
     for (int y = 0; y < image.height; y++) {
         for (int x = 0; x < image.width; x++) {
             math::vector<T, N> result;
-            for (int c = 0; c < c_max; c++)
+            for (int c = 0; c < c_max; c++) {
                 result.values[c] = convert_pixel_type<T>(read[c]);
+                if constexpr (sRGB)
+                    result.values[c] = inv_srbg(result.values[c]);
+            }
             image.pixel(x, y, result);
             read += channels;
         }
