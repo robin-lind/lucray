@@ -41,7 +41,7 @@ void save_exr(image_n<T, N>& image, const std::filesystem::path& path)
 {
     const auto new_path = (path.parent_path() / path.filename()).replace_extension("exr");
     exr_image<T, 3> img(image);
-    const char *err = nullptr; // or nullptr in C++11 or later.
+    const char *err = nullptr;
     const auto ret = SaveEXRImageToFile(&img.image, &img.header, new_path.c_str(), &err);
     if (ret != TINYEXR_SUCCESS)
         FreeEXRErrorMessage(err);
@@ -50,7 +50,59 @@ void save_exr(image_n<T, N>& image, const std::filesystem::path& path)
 template<typename T>
 void save_framebuffer_exr(framebuffer<T>& fb, const std::filesystem::path& path)
 {
-    luc::save_exr(fb.albedo, path);
+    exr_image<T, 3> combined(fb.combined);
+    exr_image<T, 3> albedo(fb.albedo);
+    exr_image<T, 3> shading_normal(fb.shading_normal);
+    exr_image<T, 3> geometry_normal(fb.geometry_normal);
+    exr_image<T, 3> position(fb.position);
+    exr_image<T, 3> emission(fb.emission);
+    exr_image<T, 3> specular(fb.specular);
+    exr_image<T, 1> metallic(fb.metallic);
+    exr_image<T, 1> roughness(fb.roughness);
+    exr_image<T, 1> ior(fb.ior);
+    exr_image<T, 1> transmission(fb.transmission);
+    std::vector<const EXRHeader *> headers;
+    std::vector<EXRImage> images;
+    headers.reserve(11);
+    images.reserve(11);
+    strncpy(combined.header.name, "combined\0", 255);
+    headers.push_back(&combined.header);
+    images.push_back(combined.image);
+    strncpy(albedo.header.name, "albedo\0", 255);
+    headers.push_back(&albedo.header);
+    images.push_back(albedo.image);
+    strncpy(shading_normal.header.name, "shading_normal\0", 255);
+    headers.push_back(&shading_normal.header);
+    images.push_back(shading_normal.image);
+    strncpy(geometry_normal.header.name, "geometry_normal\0", 255);
+    headers.push_back(&geometry_normal.header);
+    images.push_back(geometry_normal.image);
+    strncpy(position.header.name, "position\0", 255);
+    headers.push_back(&position.header);
+    images.push_back(position.image);
+    strncpy(emission.header.name, "emission\0", 255);
+    headers.push_back(&emission.header);
+    images.push_back(emission.image);
+    strncpy(specular.header.name, "specular\0", 255);
+    headers.push_back(&specular.header);
+    images.push_back(specular.image);
+    strncpy(metallic.header.name, "metallic\0", 255);
+    headers.push_back(&metallic.header);
+    images.push_back(metallic.image);
+    strncpy(roughness.header.name, "roughness\0", 255);
+    headers.push_back(&roughness.header);
+    images.push_back(roughness.image);
+    strncpy(ior.header.name, "ior\0", 255);
+    headers.push_back(&ior.header);
+    images.push_back(ior.image);
+    strncpy(transmission.header.name, "transmission\0", 255);
+    headers.push_back(&transmission.header);
+    images.push_back(transmission.image);
+    const auto new_path = (path.parent_path() / path.filename()).replace_extension("exr");
+    const char *err = nullptr;
+    const auto ret = SaveEXRMultipartImageToFile(images.data(), headers.data(), headers.size(), new_path.c_str(), &err);
+    if (ret != TINYEXR_SUCCESS)
+        FreeEXRErrorMessage(err);
 }
 } // namespace luc
 
