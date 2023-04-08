@@ -129,7 +129,6 @@ int main(int argc, char *argv[])
                       ((float)samples.size() + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)sample_count_true);
             auto start = std::chrono::steady_clock::now();
             LOG(INFO) << "frame(" << frame << ")";
-            const auto domain = generate_parallel_for_domain(width, height);
             auto tile_func = [&](const work_block<int>& block) {
                 std::random_device rd_inner;
                 std::mt19937 rng_inner(rd_inner());
@@ -143,7 +142,7 @@ int main(int argc, char *argv[])
                     *active_range = block.tile;
                 }
                 auto item_func = [&](const int x, const int y, auto&& transform) {
-                    luc::sampler<float> rng(std::sqrt(samples.size()) + 1, rng_inner);
+                    luc::sampler<float> rng((int)std::sqrt(samples.size()) + 1, rng_inner);
                     math::vector<float, 3> combined;
                     math::vector<float, 3> albedo;
                     math::vector<float, 3> shading_normal;
@@ -188,6 +187,7 @@ int main(int argc, char *argv[])
                 };
                 iterate_over_tile(block, aborter, item_func);
             };
+            const auto domain = generate_parallel_for_domain_rows(0, width, 0, height);
             parallel_for<int, true>(domain, tile_func, aborter);
             frame++;
             const auto end = std::chrono::steady_clock::now();
@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -297,38 +297,33 @@ int main(int argc, char *argv[])
     auto texture_g_loc = glGetUniformLocation(program, "texture_g");
     auto texture_b_loc = glGetUniformLocation(program, "texture_b");
 
-    GLuint texture_r;
-    glGenTextures(1, &texture_r);
-    glBindTexture(GL_TEXTURE_2D, texture_r);
+    auto gl_create_texture = [&]() {
+        GLuint id;
+        glGenTextures(1, &id);
+        glBindTexture(GL_TEXTURE_2D, id);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    GLuint texture_g;
-    glGenTextures(1, &texture_g);
-    glBindTexture(GL_TEXTURE_2D, texture_g);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    GLuint texture_b;
-    glGenTextures(1, &texture_b);
-    glBindTexture(GL_TEXTURE_2D, texture_b);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        return id;
+    };
+    GLuint texture_r = gl_create_texture();
+    GLuint texture_g = gl_create_texture();
+    GLuint texture_b = gl_create_texture();
 
     GLuint dummy_vertex_array_id;
     glGenVertexArrays(1, &dummy_vertex_array_id);
     while (!glfwWindowShouldClose(window)) {
+        int f_width, f_height;
+        glfwGetWindowSize(window, &f_width, &f_height);
+        glViewport(0, 0, f_width, f_height);
+        glClear(GL_COLOR_BUFFER_BIT);
+
         glBindTexture(GL_TEXTURE_2D, texture_r);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, framebuffer.combined.channels[0].pixels.data());
         glBindTexture(GL_TEXTURE_2D, texture_g);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, framebuffer.combined.channels[1].pixels.data());
         glBindTexture(GL_TEXTURE_2D, texture_b);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, framebuffer.combined.channels[2].pixels.data());
-
-        glViewport(0, 0, width, height);
-        glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(program);
         glUniform3fv(color_mul_loc, 1, color_mul.values.data());
