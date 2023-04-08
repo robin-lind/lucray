@@ -56,8 +56,8 @@ struct SamplerNearest {
     template<typename T, size_t N>
     static auto sample(const image<math::vector<T, N>>& buffer, const math::float2& uv)
     {
-        const auto x = (int)std::floor(math::map<float>(uv.u, 0, 1, 0, (float)buffer.width));
-        const auto y = (int)std::floor(math::map<float>(uv.v, 0, 1, 0, (float)buffer.height));
+        const auto x = (int)std::floor(math::map<float,float>(uv.u, 0, 1, 0, (float)buffer.width));
+        const auto y = (int)std::floor(math::map<float,float>(uv.v, 0, 1, 0, (float)buffer.height));
         const auto xc = math::wrap(x, 0, buffer.width);
         const auto yc = math::wrap(y, 0, buffer.height);
         const auto result = buffer.pixel(xc, yc);
@@ -69,8 +69,8 @@ struct SamplerBilinear {
     template<typename T, size_t N>
     static auto sample(const image<math::vector<T, N>>& buffer, const math::float2& uv)
     {
-        const auto x = (int)std::floor(math::map<float>(uv.u, 0, 1, 0, (float)buffer.width));
-        const auto y = (int)std::floor(math::map<float>(uv.v, 0, 1, 0, (float)buffer.height));
+        const auto x = (int)std::floor(math::map<float,float>(uv.u, 0, 1, 0, (float)buffer.width));
+        const auto y = (int)std::floor(math::map<float,float>(uv.v, 0, 1, 0, (float)buffer.height));
         const auto minx = math::wrap(x, 0, buffer.width);
         const auto maxx = math::wrap(x + 1, 0, buffer.width);
         const auto miny = math::wrap(y, 0, buffer.height);

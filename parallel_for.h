@@ -62,7 +62,7 @@ std::pair<work_range<TSize>, work_range<TSize>> split_range(const work_range<TSi
 }
 
 template<typename TSize>
-work_domain<TSize> generate_parallel_for_domain(TSize min_x, TSize max_x, TSize min_y, TSize max_y)
+work_domain<TSize> generate_parallel_for_domain_tiles(TSize min_x, TSize max_x, TSize min_y, TSize max_y)
 {
     work_domain<TSize> domain(min_x, max_x, min_y, max_y);
     std::queue<work_range<TSize>> queue;
@@ -86,9 +86,31 @@ work_domain<TSize> generate_parallel_for_domain(TSize min_x, TSize max_x, TSize 
 }
 
 template<typename TSize>
-work_domain<TSize> generate_parallel_for_domain(TSize width, TSize height)
+work_domain<TSize> generate_parallel_for_domain_rows(TSize min_x, TSize max_x, TSize min_y, TSize max_y)
 {
-    return generate_parallel_for_domain(0, width, 0, height);
+    work_domain<TSize> domain(min_x, max_x, min_y, max_y);
+    domain.ranges.reserve(max_y - min_y);
+    for (TSize y = min_y; y < max_y; y++) {
+        work_range<TSize> range(min_x, max_x, y, y + 1);
+        domain.ranges.push_back(range);
+    }
+    return domain;
+}
+
+template<typename TSize>
+work_domain<TSize> generate_parallel_for_domain_grouped_rows(TSize min_x, TSize max_x, TSize min_y, TSize max_y)
+{
+    const auto group_size = 4;
+    work_domain<TSize> domain(min_x, max_x, min_y, max_y);
+    domain.ranges.reserve((max_y - min_y) / group_size + 1);
+    for (TSize y = min_y; y < max_y; y += group_size) {
+        const auto max_y_clamped = std::min(max_y + 1, y + group_size);
+        if (y == max_y_clamped)
+            continue;
+        work_range<TSize> range(min_x, max_x, y, max_y_clamped);
+        domain.ranges.push_back(range);
+    }
+    return domain;
 }
 
 template<typename TSize>

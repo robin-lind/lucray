@@ -38,6 +38,7 @@ void scene::append_model(luc::model&& model)
         cameras.push_back(cam);
     for (const auto& minst : model.instances) {
         for (const auto& submesh : model.meshes[minst.id].meshes) {
+            if (submesh.material < 0) continue;
             subscene sscene;
             sscene.transform = minst.transform;
             sscene.inverse = math::inverse(minst.transform);
