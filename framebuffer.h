@@ -45,17 +45,17 @@ struct image_n {
 template<typename T>
 struct framebuffer {
     int width, height;
-    image_n<float, 3> combined;
-    image_n<float, 3> albedo;
-    image_n<float, 3> shading_normal;
-    image_n<float, 3> geometry_normal;
-    image_n<float, 3> position;
-    image_n<float, 3> emission;
-    image_n<float, 3> specular;
-    image_n<float, 1> metallic;
-    image_n<float, 1> roughness;
-    image_n<float, 1> ior;
-    image_n<float, 1> transmission;
+    image_n<T, 3> combined;
+    image_n<T, 3> albedo;
+    image_n<T, 3> shading_normal;
+    image_n<T, 3> geometry_normal;
+    image_n<T, 3> position;
+    image_n<T, 3> emission;
+    image_n<T, 3> specular;
+    image_n<T, 1> metallic;
+    image_n<T, 1> roughness;
+    image_n<T, 1> ior;
+    image_n<T, 1> transmission;
 
     framebuffer() = default;
 

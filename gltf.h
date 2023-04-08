@@ -27,7 +27,7 @@
 #include <filesystem>
 
 namespace luc::inner {
-luc::model load_gltf(std::filesystem::path& path);
+luc::model load_gltf(const std::filesystem::path& path);
 } // namespace luc::inner
 
 #endif

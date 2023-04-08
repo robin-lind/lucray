@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
         scene.cameras.emplace_back(eye, -eye, up, (float)width / (float)height, fov_x);
     }
 
-    luc::framebuffer<math::float3> framebuffer(width, height);
+    luc::framebuffer<float> framebuffer(width, height);
     bool done = false;
     abort_token aborter;
     std::mutex preview_mutex;
@@ -141,19 +141,21 @@ int main(int argc, char *argv[])
                 else {
                     *active_range = block.tile;
                 }
+                const float current_spp(frame + 1);
+                const float inv_next_spp(1. / double(frame + 2));
                 auto item_func = [&](const int x, const int y, auto&& transform) {
                     luc::sampler<float> rng((int)std::sqrt(samples.size()) + 1, rng_inner);
-                    math::vector<float, 3> combined;
-                    math::vector<float, 3> albedo;
-                    math::vector<float, 3> shading_normal;
-                    math::vector<float, 3> geometry_normal;
-                    math::vector<float, 3> position;
-                    math::vector<float, 3> emission;
-                    math::vector<float, 3> specular;
-                    math::vector<float, 1> metallic;
-                    math::vector<float, 1> roughness;
-                    math::vector<float, 1> ior;
-                    math::vector<float, 1> transmission;
+                    math::vector<float, 3> combined = framebuffer.combined.get(x, y) * current_spp;
+                    math::vector<float, 3> albedo = framebuffer.albedo.get(x, y) * current_spp;
+                    math::vector<float, 3> shading_normal = framebuffer.shading_normal.get(x, y) * current_spp;
+                    math::vector<float, 3> geometry_normal = framebuffer.geometry_normal.get(x, y) * current_spp;
+                    math::vector<float, 3> position = framebuffer.position.get(x, y) * current_spp;
+                    math::vector<float, 3> emission = framebuffer.emission.get(x, y) * current_spp;
+                    math::vector<float, 3> specular = framebuffer.specular.get(x, y) * current_spp;
+                    math::vector<float, 1> metallic = framebuffer.metallic.get(x, y) * current_spp;
+                    math::vector<float, 1> roughness = framebuffer.roughness.get(x, y) * current_spp;
+                    math::vector<float, 1> ior = framebuffer.ior.get(x, y) * current_spp;
+                    math::vector<float, 1> transmission = framebuffer.transmission.get(x, y) * current_spp;
                     for (auto& sample : samples) {
                         math::float3 ray_org, ray_dir;
                         std::tie(ray_org, ray_dir) = scene.cameras[camera_id].ray(transform(sample.uv));
@@ -173,17 +175,17 @@ int main(int argc, char *argv[])
                             transmission += *hit->transmission * sample.z;
                         }
                     }
-                    framebuffer.combined.set(x, y, combined);
-                    framebuffer.albedo.set(x, y, albedo);
-                    framebuffer.shading_normal.set(x, y, shading_normal);
-                    framebuffer.geometry_normal.set(x, y, geometry_normal);
-                    framebuffer.position.set(x, y, position);
-                    framebuffer.emission.set(x, y, emission);
-                    framebuffer.specular.set(x, y, specular);
-                    framebuffer.metallic.set(x, y, metallic);
-                    framebuffer.roughness.set(x, y, roughness);
-                    framebuffer.ior.set(x, y, ior);
-                    framebuffer.transmission.set(x, y, transmission);
+                    framebuffer.combined.set(x, y, combined * inv_next_spp);
+                    framebuffer.albedo.set(x, y, albedo * inv_next_spp);
+                    framebuffer.shading_normal.set(x, y, shading_normal * inv_next_spp);
+                    framebuffer.geometry_normal.set(x, y, geometry_normal * inv_next_spp);
+                    framebuffer.position.set(x, y, position * inv_next_spp);
+                    framebuffer.emission.set(x, y, emission * inv_next_spp);
+                    framebuffer.specular.set(x, y, specular * inv_next_spp);
+                    framebuffer.metallic.set(x, y, metallic * inv_next_spp);
+                    framebuffer.roughness.set(x, y, roughness * inv_next_spp);
+                    framebuffer.ior.set(x, y, ior * inv_next_spp);
+                    framebuffer.transmission.set(x, y, transmission * inv_next_spp);
                 };
                 iterate_over_tile(block, aborter, item_func);
             };
@@ -196,6 +198,7 @@ int main(int argc, char *argv[])
             for (auto *range : active_ranges)
                 delete range;
             active_ranges.clear();
+            luc::save_framebuffer_exr(framebuffer, input_files.front());
         }
         done = true;
     };

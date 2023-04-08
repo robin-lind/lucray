@@ -25,14 +25,33 @@
 
 #include <filesystem>
 #include "model.h"
+#include "framebuffer.h"
+#include "exr.h"
 
 namespace luc {
 
 namespace inner {
-luc::model load_obj(std::filesystem::path& path);
+luc::model load_obj(const std::filesystem::path& path);
 } // namespace inner
 
-luc::model load_file(std::filesystem::path path);
+luc::model load_file(const std::filesystem::path& path);
+
+template<typename T, size_t N>
+void save_exr(image_n<T, N>& image, const std::filesystem::path& path)
+{
+    const auto new_path = (path.parent_path() / path.filename()).replace_extension("exr");
+    exr_image<T, 3> img(image);
+    const char *err = nullptr; // or nullptr in C++11 or later.
+    const auto ret = SaveEXRImageToFile(&img.image, &img.header, new_path.c_str(), &err);
+    if (ret != TINYEXR_SUCCESS)
+        FreeEXRErrorMessage(err);
+}
+
+template<typename T>
+void save_framebuffer_exr(framebuffer<T>& fb, const std::filesystem::path& path)
+{
+    luc::save_exr(fb.albedo, path);
+}
 } // namespace luc
 
 #endif

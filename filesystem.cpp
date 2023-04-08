@@ -21,18 +21,19 @@
 // SOFTWARE.
 
 #include "filesystem.h"
+#include "framebuffer.h"
 #include "gltf.h"
 
 namespace luc {
 
 namespace inner {
-luc::model load_obj(std::filesystem::path& path)
+luc::model load_obj(const std::filesystem::path& path)
 {
     return luc::model();
 }
 } // namespace inner
 
-luc::model load_file(std::filesystem::path path)
+luc::model load_file(const std::filesystem::path& path)
 {
     const auto ext = path.extension();
     luc::model model;
