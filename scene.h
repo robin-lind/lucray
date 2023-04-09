@@ -72,11 +72,11 @@ struct scene {
         math::float3 normal_s;
         math::float3 albedo;
         std::optional<math::float3> emission;
-        std::optional<math::float3> specular;
-        std::optional<math::vector<float,1>> metallic;
-        std::optional<math::vector<float,1>> roughness;
-        std::optional<math::vector<float,1>> ior;
-        std::optional<math::vector<float,1>> transmission;
+        std::optional<math::vector<float, 1>> specular;
+        std::optional<math::vector<float, 1>> metallic;
+        std::optional<math::vector<float, 1>> roughness;
+        std::optional<math::vector<float, 1>> ior;
+        std::optional<math::vector<float, 1>> transmission;
     };
 
     struct subscene {

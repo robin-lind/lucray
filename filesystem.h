@@ -29,7 +29,6 @@
 #include "exr.h"
 
 namespace luc {
-
 namespace inner {
 luc::model load_obj(const std::filesystem::path& path);
 } // namespace inner
@@ -51,23 +50,27 @@ template<typename T>
 void save_framebuffer_exr(framebuffer<T>& fb, const std::filesystem::path& path)
 {
     exr_image<T, 3> combined(fb.combined);
+    exr_image<T, 3> diffuse_light(fb.diffuse_light);
     exr_image<T, 3> albedo(fb.albedo);
     exr_image<T, 3> shading_normal(fb.shading_normal);
     exr_image<T, 3> geometry_normal(fb.geometry_normal);
     exr_image<T, 3> position(fb.position);
     exr_image<T, 3> emission(fb.emission);
-    exr_image<T, 3> specular(fb.specular);
+    exr_image<T, 1> specular(fb.specular);
     exr_image<T, 1> metallic(fb.metallic);
     exr_image<T, 1> roughness(fb.roughness);
     exr_image<T, 1> ior(fb.ior);
     exr_image<T, 1> transmission(fb.transmission);
     std::vector<const EXRHeader *> headers;
     std::vector<EXRImage> images;
-    headers.reserve(11);
-    images.reserve(11);
+    headers.reserve(12);
+    images.reserve(12);
     strncpy(combined.header.name, "combined\0", 255);
     headers.push_back(&combined.header);
     images.push_back(combined.image);
+    strncpy(diffuse_light.header.name, "diffuse_light\0", 255);
+    headers.push_back(&diffuse_light.header);
+    images.push_back(diffuse_light.image);
     strncpy(albedo.header.name, "albedo\0", 255);
     headers.push_back(&albedo.header);
     images.push_back(albedo.image);

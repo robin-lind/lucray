@@ -31,7 +31,6 @@
 #include <type_traits>
 
 namespace luc {
-
 template<typename TColor>
 struct image {
     int width, height;

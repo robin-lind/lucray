@@ -193,10 +193,19 @@ void process_materials(luc::model& model, const gltf_ctx& gltf)
             else if (value.first == "KHR_materials_transmission")
                 material.transmission.value.t = (float)value.second.Get("transmissionFactor").GetNumberAsDouble();
             else if (value.first == "KHR_materials_specular") {
-                const auto specular = value.second.Get("specularColorFactor");
-                material.specular.value.r = (float)specular.Get(0).GetNumberAsDouble();
-                material.specular.value.g = (float)specular.Get(1).GetNumberAsDouble();
-                material.specular.value.b = (float)specular.Get(2).GetNumberAsDouble();
+                if (value.second.Has("specularColorFactor")) {
+                    const auto specular = value.second.Get("specularColorFactor");
+                    // material.specular.value.r = (float)specular.Get(0).GetNumberAsDouble();
+                    // material.specular.value.g = (float)specular.Get(1).GetNumberAsDouble();
+                    // material.specular.value.b = (float)specular.Get(2).GetNumberAsDouble();
+                }
+                else if (value.second.Has("specularColorTexture")) {
+                    const auto specular_id = value.second.Get("specularColorTexture").Get("index").GetNumberAsInt();
+                    // material.specular.texture = gltf.textures[specular_id];
+                }
+                else {
+                    LOG(ERROR) << "unknown specular extension: " << value.first << "\n";
+                }
             }
             else
                 LOG(ERROR) << "unknown material extension: " << value.first << "\n";

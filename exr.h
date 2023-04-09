@@ -30,7 +30,6 @@
 #include <array>
 
 namespace luc {
-
 template<typename T, size_t N>
 struct exr_image {
     EXRHeader header;

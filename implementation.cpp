@@ -1,5 +1,3 @@
-// implementation.cpp
-
 // MIT License
 //
 // Copyright (c) 2022 Robin Lind

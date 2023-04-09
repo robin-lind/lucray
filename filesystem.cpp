@@ -25,7 +25,6 @@
 #include "gltf.h"
 
 namespace luc {
-
 namespace inner {
 luc::model load_obj(const std::filesystem::path& path)
 {

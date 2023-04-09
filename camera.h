@@ -27,7 +27,6 @@
 #include <numbers>
 
 namespace luc {
-
 template<typename T>
 struct ray_camera {
     math::vector<T, 3> pos;

@@ -60,7 +60,7 @@ MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei 
 }
 
 namespace luc {
-math::float3 scene_light(const luc::scene& scene, sampler<float>& rng, const math::float3& ray_org, const math::float3& ray_dir);
+std::optional<std::pair<math::float3, scene::intersection>> scene_light(const luc::scene& scene, std::mt19937& rng, const math::float3& ray_org, const math::float3& ray_dir);
 } // namespace luc
 
 int main(int argc, char *argv[])
@@ -68,14 +68,17 @@ int main(int argc, char *argv[])
     auto sink_cout = std::make_shared<AixLog::SinkCout>(AixLog::Severity::trace);
     auto sink_file = std::make_shared<AixLog::SinkFile>(AixLog::Severity::trace, "logfile.log");
     AixLog::Log::init({ sink_cout, sink_file });
-
     const argh::parser cmdl(argc, argv);
 
-    int width = 1, height = 1, spp = 1, camera_id = 0;
+    int width = 1, height = 1, image_scale = 1, spp = 1, camera_id = 0;
     if (!(cmdl("w") >> width))
         LOG(WARNING) << "No image width provided! Defaulting to: " << width << " (-w=N)!\n";
     if (!(cmdl("h") >> height))
         LOG(WARNING) << "No image height provided! Defaulting to: " << height << " (-h=N)!\n";
+    if ((cmdl("is") >> image_scale)) {
+        width *= image_scale;
+        height *= image_scale;
+    }
     if (!(cmdl("s") >> spp))
         LOG(WARNING) << "No samples per pixel provided! Defaulting to: " << spp << " (-s=N)!\n";
     spp = std::max(spp, 1);
@@ -154,14 +157,15 @@ int main(int argc, char *argv[])
                 const float current_spp(frame + 1);
                 const float inv_next_spp(1. / double(frame + 2));
                 auto item_func = [&](const int x, const int y, auto&& transform) {
-                    luc::sampler<float> rng((int)std::sqrt(samples.size()) + 1, rng_inner);
+                    // luc::sampler<float> rng((int)std::sqrt(samples.size()) + 1, rng_inner);
                     math::vector<float, 3> combined = framebuffer.combined.get(x, y) * current_spp;
+                    math::vector<float, 3> diffuse_light = framebuffer.diffuse_light.get(x, y) * current_spp;
                     math::vector<float, 3> albedo = framebuffer.albedo.get(x, y) * current_spp;
                     math::vector<float, 3> shading_normal = framebuffer.shading_normal.get(x, y) * current_spp;
                     math::vector<float, 3> geometry_normal = framebuffer.geometry_normal.get(x, y) * current_spp;
                     math::vector<float, 3> position = framebuffer.position.get(x, y) * current_spp;
                     math::vector<float, 3> emission = framebuffer.emission.get(x, y) * current_spp;
-                    math::vector<float, 3> specular = framebuffer.specular.get(x, y) * current_spp;
+                    math::vector<float, 1> specular = framebuffer.specular.get(x, y) * current_spp;
                     math::vector<float, 1> metallic = framebuffer.metallic.get(x, y) * current_spp;
                     math::vector<float, 1> roughness = framebuffer.roughness.get(x, y) * current_spp;
                     math::vector<float, 1> ior = framebuffer.ior.get(x, y) * current_spp;
@@ -169,24 +173,27 @@ int main(int argc, char *argv[])
                     for (auto& sample : samples) {
                         math::float3 ray_org, ray_dir;
                         std::tie(ray_org, ray_dir) = scene.cameras[camera_id].ray(transform(sample.uv));
-                        const auto light = luc::scene_light(scene, rng, ray_org, ray_dir);
-                        if (const auto hit = scene.intersect(ray_org, ray_dir)) {
-                            if (std::isfinite(math::collapse(light)))
-                            combined += light * sample.z;
-                            albedo += hit->albedo * sample.z;
-                            shading_normal += hit->normal_s * sample.z;
-                            geometry_normal += hit->normal_g * sample.z;
-                            position += hit->position * sample.z;
-                            if (hit->emission.has_value())
-                                emission += *hit->emission * sample.z;
-                            specular += *hit->specular * sample.z;
-                            metallic += *hit->metallic * sample.z;
-                            roughness += *hit->roughness * sample.z;
-                            ior += *hit->ior * sample.z;
-                            transmission += *hit->transmission * sample.z;
+                        const auto hit = luc::scene_light(scene, rng_inner, ray_org, ray_dir);
+                        if (hit.has_value()) {
+                            const math::float3& light = hit->first;
+                            const luc::scene::intersection& inter = hit->second;
+                            combined += math::sanitize(light) * sample.z;
+                            diffuse_light += math::sanitize(light / inter.albedo) * sample.z;
+                            albedo += inter.albedo * sample.z;
+                            shading_normal += inter.normal_s * sample.z;
+                            geometry_normal += inter.normal_g * sample.z;
+                            position += inter.position * sample.z;
+                            if (inter.emission.has_value())
+                                emission += *inter.emission * sample.z;
+                            specular += *inter.specular * sample.z;
+                            metallic += *inter.metallic * sample.z;
+                            roughness += *inter.roughness * sample.z;
+                            ior += *inter.ior * sample.z;
+                            transmission += *inter.transmission * sample.z;
                         }
                     }
                     framebuffer.combined.set(x, y, combined * inv_next_spp);
+                    framebuffer.diffuse_light.set(x, y, diffuse_light * inv_next_spp);
                     framebuffer.albedo.set(x, y, albedo * inv_next_spp);
                     framebuffer.shading_normal.set(x, y, shading_normal * inv_next_spp);
                     framebuffer.geometry_normal.set(x, y, geometry_normal * inv_next_spp);
@@ -202,18 +209,16 @@ int main(int argc, char *argv[])
             };
             const auto domain = generate_parallel_for_domain_rows(0, width, 0, height);
             parallel_for<int, true>(domain, tile_func, aborter);
-            frame++;
             const auto end = std::chrono::steady_clock::now();
             const std::chrono::duration<double> elapsed_seconds = end - start;
             LOG(INFO) << " in: " << elapsed_seconds.count() << "s\n";
-            for (auto *range : active_ranges)
-                delete range;
-            active_ranges.clear();
-            luc::save_framebuffer_exr(framebuffer, input_files.front());
+            if (!aborter.aborted)
+                luc::save_framebuffer_exr(framebuffer, input_files.front());
+            frame++;
         }
         done = true;
     };
-    const std::thread render_thread(render_worker);
+    std::thread render_thread(render_worker);
 
     glfwSetErrorCallback(error_callback);
 
@@ -315,7 +320,7 @@ int main(int argc, char *argv[])
         GLuint id;
         glGenTextures(1, &id);
         glBindTexture(GL_TEXTURE_2D, id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         return id;
@@ -365,5 +370,8 @@ int main(int argc, char *argv[])
     glfwDestroyWindow(window);
 
     glfwTerminate();
+
+    aborter.abort();
+    render_thread.join();
     return 0;
 }

@@ -58,7 +58,7 @@ struct model {
         color<float,1> metallic;
         color<float,1> roughness;
         color<float,1> ior;
-        color<float,3> specular;
+        color<float,1> specular;
         color<float,1> transmission;
     };
 
