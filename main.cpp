@@ -23,13 +23,14 @@
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <cmath>
+#include <filesystem>
 #include "argh/argh.h"
 #include "aixlog.hpp"
 #include "math/vector.h"
+#include "math/utils.h"
 #include "camera.h"
 #include "framebuffer.h"
 #include "parallel_for.h"
@@ -89,8 +90,13 @@ int main(int argc, char *argv[])
     std::vector<std::string> input_files;
     input_files.reserve(positional.size());
     auto working_directory = std::filesystem::current_path();
-    for (const auto& pos : positional)
-        input_files.emplace_back(working_directory / std::filesystem::path(pos));
+    for (const auto& pos : positional) {
+        const auto path = working_directory / std::filesystem::path(pos);
+        if (std::filesystem::exists(path))
+            input_files.emplace_back(path);
+        else
+            LOG(ERROR) << "File does not exist! (" << path << ")\n";
+    }
 
     luc::scene scene;
     for (auto& file_path : input_files)
@@ -104,6 +110,10 @@ int main(int argc, char *argv[])
         const math::float3 eye = root_max * 2.f;
         const math::float3 up(0.f, 1.f, 0.f);
         scene.cameras.emplace_back(eye, -eye, up, (float)width / (float)height, fov_x);
+    }
+    if (camera_id < 0 || camera_id >= scene.cameras.size()) {
+        LOG(ERROR) << "Invalid camera index! (" << camera_id << ") setting index to 0\n";
+        camera_id = 0;
     }
 
     luc::framebuffer<float> framebuffer(width, height);
@@ -161,6 +171,7 @@ int main(int argc, char *argv[])
                         std::tie(ray_org, ray_dir) = scene.cameras[camera_id].ray(transform(sample.uv));
                         const auto light = luc::scene_light(scene, rng, ray_org, ray_dir);
                         if (const auto hit = scene.intersect(ray_org, ray_dir)) {
+                            if (std::isfinite(math::collapse(light)))
                             combined += light * sample.z;
                             albedo += hit->albedo * sample.z;
                             shading_normal += hit->normal_s * sample.z;

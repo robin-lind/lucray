@@ -286,7 +286,7 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
             if (math::length_squared(emission) > 0)
                 result.emission = emission * scene.material.emissive_strength;
         }
-        result.specular = result.albedo;
+        result.specular = scene.material.specular.value;
         result.metallic = scene.material.metallic.value;
         result.roughness = scene.material.roughness.value;
         result.ior = scene.material.ior.value;
