@@ -25,6 +25,7 @@
 
 #include "math/vector.h"
 #include "math/utils.h"
+#include <cstddef>
 #include <vector>
 #include <thread>
 #include <functional>
@@ -176,7 +177,7 @@ void iterate_over_tile(const work_block<TSize>& block, const abort_token& aborte
 }
 
 template<typename TSize = int, bool parallel = true>
-void parallel_for(const work_domain<TSize>& domain, auto&& tile_func, abort_token& aborter)
+void parallel_for(const work_domain<TSize>& domain, auto&& tile_func, abort_token *aborter)
 {
     auto range_queue = range_queue_from_domain(domain.ranges);
     std::mutex work_stealing_mutex;
@@ -187,7 +188,7 @@ void parallel_for(const work_domain<TSize>& domain, auto&& tile_func, abort_toke
     const auto thread_count = parallel ? number_of_threads : 1;
     auto worker = [&]() {
         work_block<TSize> block(domain.range, domain.range);
-        while (!aborter.aborted) {
+        while (aborter != nullptr ? !aborter->aborted : true) {
             {
                 const std::scoped_lock stealing_work(work_stealing_mutex);
                 if (range_queue.size() == 0)

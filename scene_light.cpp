@@ -68,6 +68,28 @@ T sample_diffuse_pdf(const math::vector<T, 3>& wo, const math::vector<T, 3>& wi)
     return sample_cosine_hemisphere_pdf(wi);
 }
 
+template<typename T>
+std::optional<std::pair<math::vector<T, 3>, math::vector<T, 3>>> sample_and_eval_bsdf(const material_sample& material, const math::vector<T, 3>& wo, const std::array<T, 2>& rand)
+{
+    switch (material.type) {
+        case material_type::diffuse:
+            return sample_and_eval_diffuse(material.albedo, wo, rand);
+        default:
+            return std::nullopt;
+    }
+}
+
+template<typename T>
+auto sample_bsdf_pdf(const material_sample& material, const math::vector<T, 3>& wo, const math::vector<T, 3>& wi)
+{
+    switch (material.type) {
+        case material_type::diffuse:
+            return sample_diffuse_pdf(wo, wi);
+        default:
+            return std::numeric_limits<T>::infinity();
+    }
+}
+
 std::optional<std::pair<math::float3, scene::intersection>> scene_light(const luc::scene& scene, std::mt19937& rng, const math::float3& ray_org, const math::float3& ray_dir)
 {
     std::optional<scene::intersection> first_hit;
@@ -97,8 +119,11 @@ std::optional<std::pair<math::float3, scene::intersection>> scene_light(const lu
             org = hit->position + offset;
 
             const std::array<float, 2> rand{ uni(rng), uni(rng) };
+            material_sample material;
+            material.type = material_type::diffuse;
+            material.albedo = hit->albedo;
             const auto wo = ortho.to_local(-dir);
-            if (const auto s = sample_and_eval_diffuse(hit->albedo, wo, rand)) {
+            if (const auto s = sample_and_eval_diffuse(material.albedo, wo, rand)) {
                 math::float3 wi, color;
                 std::tie(wi, color) = *s;
                 const auto pdf = sample_diffuse_pdf(wo, wi);

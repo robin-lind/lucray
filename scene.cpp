@@ -25,6 +25,7 @@
 #include "math/vector.h"
 #include "math/matrix.h"
 #include "math/bounds.h"
+#include <limits>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -266,31 +267,15 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
         result.position = inter.position;
         result.normal_g = inter.normal_g;
         result.normal_s = inter.normal_s;
-        if (scene.material.albedo.texture.has_value()) {
-            const auto& tex = *scene.material.albedo.texture;
-            const auto albedo = tex->sample(inter.texcoord);
-            result.albedo = albedo;
-        }
-        else {
-            const auto albedo = scene.material.albedo.value;
-            result.albedo = albedo;
-        }
-        if (scene.material.emission.texture.has_value()) {
-            const auto& tex = *scene.material.emission.texture;
-            const auto emission = tex->sample(inter.texcoord);
-            if (math::length_squared(emission) > 0)
-                result.emission = emission * scene.material.emissive_strength;
-        }
-        else {
-            const auto emission = scene.material.emission.value;
-            if (math::length_squared(emission) > 0)
-                result.emission = emission * scene.material.emissive_strength;
-        }
-        result.specular = scene.material.specular.value;
-        result.metallic = scene.material.metallic.value;
-        result.roughness = scene.material.roughness.value;
-        result.ior = scene.material.ior.value;
-        result.transmission = scene.material.transmission.value;
+        result.albedo = scene.material.albedo.sample(inter.texcoord);
+        const auto emission = scene.material.emission.sample(inter.texcoord) * scene.material.emissive_strength;
+        if (math::collapse(emission) > std::numeric_limits<float>::epsilon())
+            result.emission = emission;
+        result.specular = scene.material.specular.sample(inter.texcoord);
+        result.metallic = scene.material.metallic.sample(inter.texcoord);
+        result.roughness = scene.material.roughness.sample(inter.texcoord);
+        result.ior = scene.material.ior.sample(inter.texcoord);
+        result.transmission = scene.material.transmission.sample(inter.texcoord);
         return result;
     }
     return std::nullopt;

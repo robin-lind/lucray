@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+#include "parallel_for.h"
 
 namespace luc {
 template<typename TColor>
@@ -55,8 +56,8 @@ struct SamplerNearest {
     template<typename T, size_t N>
     static auto sample(const image<math::vector<T, N>>& buffer, const math::float2& uv)
     {
-        const auto x = (int)std::floor(math::map<float,float>(uv.u, 0, 1, 0, (float)buffer.width));
-        const auto y = (int)std::floor(math::map<float,float>(uv.v, 0, 1, 0, (float)buffer.height));
+        const auto x = (int)std::floor(math::map<float, float>(uv.u, 0, 1, 0, (float)buffer.width));
+        const auto y = (int)std::floor(math::map<float, float>(uv.v, 0, 1, 0, (float)buffer.height));
         const auto xc = math::wrap(x, 0, buffer.width);
         const auto yc = math::wrap(y, 0, buffer.height);
         const auto result = buffer.pixel(xc, yc);
@@ -68,8 +69,8 @@ struct SamplerBilinear {
     template<typename T, size_t N>
     static auto sample(const image<math::vector<T, N>>& buffer, const math::float2& uv)
     {
-        const auto x = (int)std::floor(math::map<float,float>(uv.u, 0, 1, 0, (float)buffer.width));
-        const auto y = (int)std::floor(math::map<float,float>(uv.v, 0, 1, 0, (float)buffer.height));
+        const auto x = (int)std::floor(math::map<float, float>(uv.u, 0, 1, 0, (float)buffer.width));
+        const auto y = (int)std::floor(math::map<float, float>(uv.v, 0, 1, 0, (float)buffer.height));
         const auto minx = math::wrap(x, 0, buffer.width);
         const auto maxx = math::wrap(x + 1, 0, buffer.width);
         const auto miny = math::wrap(y, 0, buffer.height);
@@ -136,23 +137,29 @@ math::vector<T, N> convert_pixel(const math::vector<S, N>& v)
 template<typename S, typename T, size_t N, bool sRGB = true>
 void load_raw_into_image(image<math::vector<T, N>>& image, size_t channels, const void *data)
 {
-    auto inv_srbg = [&](T n) {
-        return n < 0.04045f ? (n / 12.92f) : std::pow(((n + 0.055f) / 1.055f), 2.4f);
-    };
-    const auto c_max = std::min(N, channels);
-    auto *read = (S *)data;
-    for (int y = 0; y < image.height; y++) {
-        for (int x = 0; x < image.width; x++) {
-            math::vector<T, N> result;
-            for (int c = 0; c < c_max; c++) {
-                result.values[c] = convert_pixel_type<T>(read[c]);
-                if constexpr (sRGB)
-                    result.values[c] = inv_srbg(result.values[c]);
+    const auto domain = generate_parallel_for_domain_rows(0, image.width, 0, image.height);
+    auto tile_func = [&](const work_block<int>& block) {
+        auto inv_srbg = [&](T n) {
+            return n < 0.04045f ? (n / 12.92f) : std::pow(((n + 0.055f) / 1.055f), 2.4f);
+        };
+        const auto c_max = std::min(N, channels);
+        auto *read = (S *)data;
+        for (auto y = block.tile.miny; y < block.tile.maxy; y++) {
+            const auto row = y * image.width * channels;
+            for (auto x = block.tile.minx; x < block.tile.maxx; x++) {
+                const auto col = x * channels;
+                math::vector<T, N> result;
+                for (int c = 0; c < c_max; c++) {
+                    const auto i = row + col + c;
+                    result.values[c] = convert_pixel_type<T>(read[i]);
+                    if constexpr (sRGB)
+                        result.values[c] = inv_srbg(result.values[c]);
+                }
+                image.pixel(x, y, result);
             }
-            image.pixel(x, y, result);
-            read += channels;
         }
-    }
+    };
+    parallel_for<int, true>(domain, tile_func, nullptr);
 }
 } // namespace luc
 #endif

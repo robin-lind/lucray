@@ -65,6 +65,15 @@ union triplet {
     };
 };
 
+enum material_type {
+    diffuse
+};
+
+struct material_sample {
+    material_type type;
+    math::float3 albedo;
+};
+
 struct scene {
     struct intersection {
         math::float3 position;
@@ -72,11 +81,11 @@ struct scene {
         math::float3 normal_s;
         math::float3 albedo;
         std::optional<math::float3> emission;
-        std::optional<math::vector<float, 1>> specular;
-        std::optional<math::vector<float, 1>> metallic;
-        std::optional<math::vector<float, 1>> roughness;
-        std::optional<math::vector<float, 1>> ior;
-        std::optional<math::vector<float, 1>> transmission;
+        math::vector<float, 1> specular;
+        math::vector<float, 1> metallic;
+        math::vector<float, 1> roughness;
+        math::vector<float, 1> ior;
+        math::vector<float, 1> transmission;
     };
 
     struct subscene {

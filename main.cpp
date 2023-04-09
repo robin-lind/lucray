@@ -185,11 +185,11 @@ int main(int argc, char *argv[])
                             position += inter.position * sample.z;
                             if (inter.emission.has_value())
                                 emission += *inter.emission * sample.z;
-                            specular += *inter.specular * sample.z;
-                            metallic += *inter.metallic * sample.z;
-                            roughness += *inter.roughness * sample.z;
-                            ior += *inter.ior * sample.z;
-                            transmission += *inter.transmission * sample.z;
+                            specular += inter.specular * sample.z;
+                            metallic += inter.metallic * sample.z;
+                            roughness += inter.roughness * sample.z;
+                            ior += inter.ior * sample.z;
+                            transmission += inter.transmission * sample.z;
                         }
                     }
                     framebuffer.combined.set(x, y, combined * inv_next_spp);
@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
                 iterate_over_tile(block, aborter, item_func);
             };
             const auto domain = generate_parallel_for_domain_rows(0, width, 0, height);
-            parallel_for<int, true>(domain, tile_func, aborter);
+            parallel_for<int, true>(domain, tile_func, &aborter);
             const auto end = std::chrono::steady_clock::now();
             const std::chrono::duration<double> elapsed_seconds = end - start;
             LOG(INFO) << " in: " << elapsed_seconds.count() << "s\n";

@@ -50,16 +50,25 @@ struct model {
         struct color {
             math::vector<T, N> value;
             std::optional<std::shared_ptr<texture<T, N>>> texture;
+
+            auto sample(const math::vector<T, 2>& uv) const
+            {
+                if (texture.has_value()) {
+                    const auto result = (*texture)->sample(uv);
+                    return result;
+                }
+                return value;
+            }
         };
 
-        color<float,3> albedo;
-        color<float,3> emission;
+        color<float, 3> albedo;
+        color<float, 3> emission;
         float emissive_strength = 1.f;
-        color<float,1> metallic;
-        color<float,1> roughness;
-        color<float,1> ior;
-        color<float,1> specular;
-        color<float,1> transmission;
+        color<float, 1> metallic;
+        color<float, 1> roughness;
+        color<float, 1> ior;
+        color<float, 1> specular;
+        color<float, 1> transmission;
     };
 
     struct instance {

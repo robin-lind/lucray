@@ -28,11 +28,15 @@
 #include "math/matrix.h"
 #include "tinygltf/tiny_gltf.h"
 #include <memory>
+#include <unordered_map>
+#include <utility>
+#include "parallel_for.h"
 
 namespace luc::inner {
 struct gltf_ctx {
     tinygltf::Model model;
-    std::vector<std::shared_ptr<luc::texture<float, 3>>> textures;
+    std::unordered_map<std::string, std::shared_ptr<luc::texture<float, 1>>> textures1c;
+    std::unordered_map<std::string, std::shared_ptr<luc::texture<float, 3>>> textures3c;
 };
 
 template<typename T, typename S, size_t N>
@@ -102,7 +106,7 @@ void process_meshes(luc::model& model, const gltf_ctx& gltf)
 {
     model.meshes.reserve(gltf.model.nodes.size());
     for (const auto& gmesh : gltf.model.meshes) {
-        LOG(INFO) << gmesh.name << "\n";
+        LOG(INFO) << "Mesh: " << gmesh.name << "\n";
         luc::model::mesh mesh;
         for (const auto& gprim : gmesh.primitives) {
             luc::model::mesh::submesh smesh;
@@ -170,7 +174,7 @@ void process_instances(luc::model& model, const gltf_ctx& gltf)
     }
 }
 
-void process_materials(luc::model& model, const gltf_ctx& gltf)
+void process_materials(luc::model& model, gltf_ctx& gltf)
 {
     model.materials.reserve(gltf.model.materials.size());
     for (const auto& gmat : gltf.model.materials) {
@@ -182,9 +186,30 @@ void process_materials(luc::model& model, const gltf_ctx& gltf)
         material.roughness.value.t = (float)gmat.pbrMetallicRoughness.roughnessFactor;
         material.emission.value = math::float3((float)gmat.emissiveFactor[0], (float)gmat.emissiveFactor[1], (float)gmat.emissiveFactor[2]);
         if (gmat.emissiveTexture.index > -1)
-            material.emission.texture = gltf.textures[gmat.emissiveTexture.index];
+            material.emission.texture = gltf.textures3c.at(gltf.model.images[gltf.model.textures[gmat.emissiveTexture.index].source].name);
         if (gmat.pbrMetallicRoughness.baseColorTexture.index > -1)
-            material.albedo.texture = gltf.textures[gmat.pbrMetallicRoughness.baseColorTexture.index];
+            material.albedo.texture = gltf.textures3c.at(gltf.model.images[gltf.model.textures[gmat.pbrMetallicRoughness.baseColorTexture.index].source].name);
+        if (gmat.pbrMetallicRoughness.metallicRoughnessTexture.index > -1) {
+            const auto& mr_name = gltf.model.images[gltf.model.textures[gmat.pbrMetallicRoughness.metallicRoughnessTexture.index].source].name;
+            const auto mr_tex = gltf.textures3c.at(mr_name);
+            gltf.textures3c.erase(mr_name);
+            const int width = mr_tex->buffer.width, height = mr_tex->buffer.height;
+            material.roughness.texture = std::make_shared<luc::texture<float, 1>>(width, height);
+            material.metallic.texture = std::make_shared<luc::texture<float, 1>>(width, height);
+            gltf.textures1c.emplace(gmat.name + "[roughness]", *material.roughness.texture);
+            gltf.textures1c.emplace(gmat.name + "[metallic]", *material.metallic.texture);
+            const auto domain = generate_parallel_for_domain_rows(0, width, 0, height);
+            auto tile_func = [&](const work_block<int>& block) {
+                for (auto y = block.tile.miny; y < block.tile.maxy; y++) {
+                    for (auto x = block.tile.minx; x < block.tile.maxx; x++) {
+                        const auto& p = mr_tex->buffer.pixel(x, y);
+                        (*material.roughness.texture)->buffer.pixel(x, y, p.g);
+                        (*material.metallic.texture)->buffer.pixel(x, y, p.b);
+                    }
+                }
+            };
+            parallel_for(domain, tile_func, nullptr);
+        }
         for (const auto& value : gmat.extensions)
             if (value.first == "KHR_materials_emissive_strength")
                 material.emissive_strength = (float)value.second.Get("emissiveStrength").GetNumberAsDouble();
@@ -195,9 +220,7 @@ void process_materials(luc::model& model, const gltf_ctx& gltf)
             else if (value.first == "KHR_materials_specular") {
                 if (value.second.Has("specularColorFactor")) {
                     const auto specular = value.second.Get("specularColorFactor");
-                    // material.specular.value.r = (float)specular.Get(0).GetNumberAsDouble();
-                    // material.specular.value.g = (float)specular.Get(1).GetNumberAsDouble();
-                    // material.specular.value.b = (float)specular.Get(2).GetNumberAsDouble();
+                    material.specular.value.t = (float)specular.Get(0).GetNumberAsDouble();
                 }
                 else if (value.second.Has("specularColorTexture")) {
                     const auto specular_id = value.second.Get("specularColorTexture").Get("index").GetNumberAsInt();
@@ -215,10 +238,11 @@ void process_materials(luc::model& model, const gltf_ctx& gltf)
 
 void process_textures(gltf_ctx& gltf)
 {
-    gltf.textures.reserve(gltf.model.textures.size());
+    gltf.textures3c.reserve(gltf.model.textures.size());
     for (const auto& tex : gltf.model.textures) {
         if (tex.source > -1) {
             const auto& gimage = gltf.model.images[tex.source];
+            LOG(INFO) << "Texture: " << gimage.name << " (" << gimage.width << "x" << gimage.height << "x" << gimage.component << ")\n";
             auto image = std::make_shared<luc::texture<float, 3>>(gimage.width, gimage.height);
             switch (gimage.pixel_type) {
                 case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: {
@@ -237,7 +261,7 @@ void process_textures(gltf_ctx& gltf)
                     LOG(ERROR) << "unknown pixel type: " << gimage.mimeType << "(" << gimage.component << "x" << gimage.bits << "bits)\n";
                     break;
             }
-            gltf.textures.push_back(image);
+            gltf.textures3c.emplace(gimage.name, image);
         }
     }
 }
@@ -257,9 +281,9 @@ luc::model load_gltf(const std::filesystem::path& path)
     luc::model model;
     if (!ret)
         return model;
-    process_textures(gltf);
     process_meshes(model, gltf);
     process_instances(model, gltf);
+    process_textures(gltf);
     process_materials(model, gltf);
     return model;
 }
