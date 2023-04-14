@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <algorithm>
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -37,6 +38,7 @@
 #include "filesystem.h"
 #include "scene.h"
 #include "sampler.h"
+#include "renderer.h"
 
 static void error_callback(int error, const char *description)
 {
@@ -50,18 +52,13 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 }
 
 void GLAPIENTRY
-MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
+GL_message(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
 {
     if (type == GL_DEBUG_TYPE_ERROR)
         LOG(ERROR) << "GL: " << message << "\n";
-    else
-        LOG(INFO) << "GL: " << message << "\n";
-    return;
+    // else
+    //     LOG(INFO) << "GL: " << message << "\n";
 }
-
-namespace luc {
-std::optional<std::pair<math::float3, scene::intersection>> scene_light(const luc::scene& scene, std::mt19937& rng, const math::float3& ray_org, const math::float3& ray_dir);
-} // namespace luc
 
 int main(int argc, char *argv[])
 {
@@ -70,20 +67,24 @@ int main(int argc, char *argv[])
     AixLog::Log::init({ sink_cout, sink_file });
     const argh::parser cmdl(argc, argv);
 
-    int width = 1, height = 1, image_scale = 1, spp = 1, camera_id = 0;
-    if (!(cmdl("w") >> width))
-        LOG(WARNING) << "No image width provided! Defaulting to: " << width << " (-w=N)!\n";
-    if (!(cmdl("h") >> height))
-        LOG(WARNING) << "No image height provided! Defaulting to: " << height << " (-h=N)!\n";
-    if ((cmdl("is") >> image_scale)) {
-        width *= image_scale;
-        height *= image_scale;
+    luc::settings s;
+    if (!(cmdl("width") >> s.width))
+        LOG(WARNING) << "No image width provided! Defaulting to: " << s.width << " (-w=N)!\n";
+    if (!(cmdl("height") >> s.height))
+        LOG(WARNING) << "No image height provided! Defaulting to: " << s.height << " (-h=N)!\n";
+    if ((cmdl("imagescale") >> s.image_scale)) {
+        s.width *= s.image_scale;
+        s.height *= s.image_scale;
     }
-    if (!(cmdl("s") >> spp))
-        LOG(WARNING) << "No samples per pixel provided! Defaulting to: " << spp << " (-s=N)!\n";
-    spp = std::max(spp, 1);
-    if (!(cmdl("c") >> camera_id))
-        LOG(WARNING) << "No camera selected! Defaulting to: " << camera_id << " (-c=N)!\n";
+    if (!(cmdl("spp") >> s.samples_per_pixel))
+        LOG(WARNING) << "No samples per pixel provided! Defaulting to: " << s.samples_per_pixel << " (-s=N)!\n";
+    s.samples_per_pixel = std::max(s.samples_per_pixel, 1);
+    cmdl("spl") >> s.samples_per_loop;
+    s.samples_per_loop = std::max(std::min(s.samples_per_pixel, s.samples_per_loop), std::min(s.samples_per_pixel, 16));
+    if (!(cmdl("camera") >> s.camera_id))
+        LOG(WARNING) << "No camera selected! Defaulting to: " << s.camera_id << " (-c=N)!\n";
+    if (!(cmdl("depth") >> s.max_depth))
+        LOG(WARNING) << "No max depth selected! Defaulting to: " << s.max_depth << " (-d=N)!\n";
 
     const std::vector<std::string> positional(std::begin(cmdl.pos_args()) + 1, std::end(cmdl.pos_args()));
     if (positional.empty()) {
@@ -92,7 +93,7 @@ int main(int argc, char *argv[])
     }
     std::vector<std::string> input_files;
     input_files.reserve(positional.size());
-    auto working_directory = std::filesystem::current_path();
+    const auto working_directory = std::filesystem::current_path();
     for (const auto& pos : positional) {
         const auto path = working_directory / std::filesystem::path(pos);
         if (std::filesystem::exists(path))
@@ -100,6 +101,8 @@ int main(int argc, char *argv[])
         else
             LOG(ERROR) << "File does not exist! (" << path << ")\n";
     }
+    if (!(cmdl("output") >> s.image_name))
+        s.image_name = input_files.front();
 
     luc::scene scene;
     for (auto& file_path : input_files)
@@ -112,135 +115,36 @@ int main(int argc, char *argv[])
         const math::float3 root_max(scene.accelerator.get_root().get_bbox().max.values);
         const math::float3 eye = root_max * 2.f;
         const math::float3 up(0.f, 1.f, 0.f);
-        scene.cameras.emplace_back(eye, -eye, up, (float)width / (float)height, fov_x);
+        scene.cameras.emplace_back(eye, -eye, up, (float)s.width / (float)s.height, fov_x);
     }
-    if (camera_id < 0 || camera_id >= scene.cameras.size()) {
-        LOG(ERROR) << "Invalid camera index! (" << camera_id << ") setting index to 0\n";
-        camera_id = 0;
+    if (s.camera_id < 0 || s.camera_id >= scene.cameras.size()) {
+        LOG(ERROR) << "Invalid camera index! (" << s.camera_id << ") setting index to 0\n";
+        s.camera_id = 0;
     }
 
-    luc::framebuffer<float> framebuffer(width, height);
-    bool done = false;
+    luc::framebuffer<float> fb(s.width, s.height);
     abort_token aborter;
-    std::mutex preview_mutex;
-    std::vector<work_range<int> *> active_ranges;
     auto render_worker = [&]() {
-        int frame = 0;
-        while (!aborter.aborted) {
-            std::random_device rd_outer;
-            std::mt19937 rng_outer(rd_outer());
-            const auto sample_count = spp;
-            const auto samples_sqrt = (int)std::ceil(std::sqrt(sample_count));
-            const auto sample_count_true = samples_sqrt * samples_sqrt;
-            std::vector<math::float4> samples;
-            for (size_t v = 0; v < samples_sqrt; v++)
-                for (size_t u = 0; u < samples_sqrt; u++)
-                    samples.emplace_back(
-                      (((float)u + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)samples_sqrt) - .5f,
-                      (((float)v + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)samples_sqrt) - .5f,
-                      1.f / (float)sample_count_true,
-                      ((float)samples.size() + std::uniform_real_distribution<float>(0.f, 1.f)(rng_outer)) / (float)sample_count_true);
-            auto start = std::chrono::steady_clock::now();
-            LOG(INFO) << "frame(" << frame << ")";
-            auto tile_func = [&](const work_block<int>& block) {
-                std::random_device rd_inner;
-                std::mt19937 rng_inner(rd_inner());
-                static thread_local work_range<int> *active_range = nullptr;
-                if (!active_range) {
-                    const std::scoped_lock preview_lock(preview_mutex);
-                    active_range = new work_range<int>(block.tile);
-                    active_ranges.push_back(active_range);
-                }
-                else {
-                    *active_range = block.tile;
-                }
-                const float current_spp(frame + 1);
-                const float inv_next_spp(1. / double(frame + 2));
-                auto item_func = [&](const int x, const int y, auto&& transform) {
-                    // luc::sampler<float> rng((int)std::sqrt(samples.size()) + 1, rng_inner);
-                    math::vector<float, 3> combined = framebuffer.combined.get(x, y) * current_spp;
-                    math::vector<float, 3> diffuse_light = framebuffer.diffuse_light.get(x, y) * current_spp;
-                    math::vector<float, 3> albedo = framebuffer.albedo.get(x, y) * current_spp;
-                    math::vector<float, 3> shading_normal = framebuffer.shading_normal.get(x, y) * current_spp;
-                    math::vector<float, 3> geometry_normal = framebuffer.geometry_normal.get(x, y) * current_spp;
-                    math::vector<float, 3> position = framebuffer.position.get(x, y) * current_spp;
-                    math::vector<float, 3> emission = framebuffer.emission.get(x, y) * current_spp;
-                    math::vector<float, 1> specular = framebuffer.specular.get(x, y) * current_spp;
-                    math::vector<float, 1> metallic = framebuffer.metallic.get(x, y) * current_spp;
-                    math::vector<float, 1> roughness = framebuffer.roughness.get(x, y) * current_spp;
-                    math::vector<float, 1> ior = framebuffer.ior.get(x, y) * current_spp;
-                    math::vector<float, 1> transmission = framebuffer.transmission.get(x, y) * current_spp;
-                    for (auto& sample : samples) {
-                        math::float3 ray_org, ray_dir;
-                        std::tie(ray_org, ray_dir) = scene.cameras[camera_id].ray(transform(sample.uv));
-                        const auto hit = luc::scene_light(scene, rng_inner, ray_org, ray_dir);
-                        if (hit.has_value()) {
-                            const math::float3& light = hit->first;
-                            const luc::scene::intersection& inter = hit->second;
-                            combined += math::sanitize(light) * sample.z;
-                            diffuse_light += math::sanitize(light / inter.albedo) * sample.z;
-                            albedo += inter.albedo * sample.z;
-                            shading_normal += inter.normal_s * sample.z;
-                            geometry_normal += inter.normal_g * sample.z;
-                            position += inter.position * sample.z;
-                            if (inter.emission.has_value())
-                                emission += *inter.emission * sample.z;
-                            specular += inter.specular * sample.z;
-                            metallic += inter.metallic * sample.z;
-                            roughness += inter.roughness * sample.z;
-                            ior += inter.ior * sample.z;
-                            transmission += inter.transmission * sample.z;
-                        }
-                    }
-                    framebuffer.combined.set(x, y, combined * inv_next_spp);
-                    framebuffer.diffuse_light.set(x, y, diffuse_light * inv_next_spp);
-                    framebuffer.albedo.set(x, y, albedo * inv_next_spp);
-                    framebuffer.shading_normal.set(x, y, shading_normal * inv_next_spp);
-                    framebuffer.geometry_normal.set(x, y, geometry_normal * inv_next_spp);
-                    framebuffer.position.set(x, y, position * inv_next_spp);
-                    framebuffer.emission.set(x, y, emission * inv_next_spp);
-                    framebuffer.specular.set(x, y, specular * inv_next_spp);
-                    framebuffer.metallic.set(x, y, metallic * inv_next_spp);
-                    framebuffer.roughness.set(x, y, roughness * inv_next_spp);
-                    framebuffer.ior.set(x, y, ior * inv_next_spp);
-                    framebuffer.transmission.set(x, y, transmission * inv_next_spp);
-                };
-                iterate_over_tile(block, aborter, item_func);
-            };
-            const auto domain = generate_parallel_for_domain_rows(0, width, 0, height);
-            parallel_for<int, true>(domain, tile_func, &aborter);
-            const auto end = std::chrono::steady_clock::now();
-            const std::chrono::duration<double> elapsed_seconds = end - start;
-            LOG(INFO) << " in: " << elapsed_seconds.count() << "s\n";
-            if (!aborter.aborted)
-                luc::save_framebuffer_exr(framebuffer, input_files.front());
-            frame++;
-        }
-        done = true;
+        luc::render(s, fb, aborter, scene);
     };
     std::thread render_thread(render_worker);
 
     glfwSetErrorCallback(error_callback);
-
     if (!glfwInit()) {
         LOG(ERROR) << "glfwInit failed\n";
         return 1;
     }
-
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    auto *window = glfwCreateWindow(width, height, "lucray", NULL, NULL);
+    auto *window = glfwCreateWindow(s.width, s.height, "lucray", NULL, NULL);
     if (!window) {
         LOG(ERROR) << "glfwCreateWindow failed\n";
         glfwTerminate();
         return 1;
     }
-
     glfwSetKeyCallback(window, key_callback);
-
     glfwMakeContextCurrent(window);
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         if (!gladLoadGL()) {
@@ -249,9 +153,8 @@ int main(int argc, char *argv[])
         }
     }
     glEnable(GL_DEBUG_OUTPUT);
-    glDebugMessageCallback(MessageCallback, nullptr);
+    glDebugMessageCallback(GL_message, nullptr);
     glfwSwapInterval(1);
-
     const char *vertex_shader_text =
       "#version 330 core\n"
       "const vec2 vertices[3] = vec2[3](vec2(-1., 1.), vec2(3., 1.), vec2(-1., -3.));\n"
@@ -262,7 +165,6 @@ int main(int argc, char *argv[])
       "    frag_uv = uvs[gl_VertexID];\n"
       "    gl_Position = vec4(vertices[gl_VertexID], 0., 1.);\n"
       "}\n";
-
     const char *fragment_shader_text =
       "#version 330 core\n"
       "in vec2 frag_uv;\n"
@@ -294,83 +196,67 @@ int main(int argc, char *argv[])
       "    vec3 srgb = sRGB_gamma3f(color);\n"
       "    output_color = vec4(srgb, 1.);\n"
       "}\n";
-
     auto vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, &vertex_shader_text, nullptr);
     glCompileShader(vertex_shader);
-
     auto fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment_shader, 1, &fragment_shader_text, nullptr);
     glCompileShader(fragment_shader);
-
     auto program = glCreateProgram();
     glAttachShader(program, vertex_shader);
     glAttachShader(program, fragment_shader);
     glLinkProgram(program);
-
     math::float3 color_mul(1);
     math::float3 color_lum(0, 0, 0);
-    auto color_mul_loc = glGetUniformLocation(program, "color_mul");
-    auto color_lum_loc = glGetUniformLocation(program, "color_lum");
-    auto texture_r_loc = glGetUniformLocation(program, "texture_r");
-    auto texture_g_loc = glGetUniformLocation(program, "texture_g");
-    auto texture_b_loc = glGetUniformLocation(program, "texture_b");
-
+    const auto color_mul_loc = glGetUniformLocation(program, "color_mul");
+    const auto color_lum_loc = glGetUniformLocation(program, "color_lum");
+    const auto texture_r_loc = glGetUniformLocation(program, "texture_r");
+    const auto texture_g_loc = glGetUniformLocation(program, "texture_g");
+    const auto texture_b_loc = glGetUniformLocation(program, "texture_b");
     auto gl_create_texture = [&]() {
         GLuint id;
         glGenTextures(1, &id);
         glBindTexture(GL_TEXTURE_2D, id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, s.width, s.height, 0, GL_RED, GL_FLOAT, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         return id;
     };
-    GLuint texture_r = gl_create_texture();
-    GLuint texture_g = gl_create_texture();
-    GLuint texture_b = gl_create_texture();
-
+    const auto texture_r = gl_create_texture();
+    const auto texture_g = gl_create_texture();
+    const auto texture_b = gl_create_texture();
     GLuint dummy_vertex_array_id;
     glGenVertexArrays(1, &dummy_vertex_array_id);
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window) && !aborter.aborted) {
         int f_width, f_height;
         glfwGetWindowSize(window, &f_width, &f_height);
         glViewport(0, 0, f_width, f_height);
         glClear(GL_COLOR_BUFFER_BIT);
-
         glBindTexture(GL_TEXTURE_2D, texture_r);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, framebuffer.combined.channels[0].pixels.data());
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, s.width, s.height, 0, GL_RED, GL_FLOAT, fb.combined.channels[0].pixels.data());
         glBindTexture(GL_TEXTURE_2D, texture_g);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, framebuffer.combined.channels[1].pixels.data());
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, s.width, s.height, 0, GL_RED, GL_FLOAT, fb.combined.channels[1].pixels.data());
         glBindTexture(GL_TEXTURE_2D, texture_b);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, framebuffer.combined.channels[2].pixels.data());
-
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, s.width, s.height, 0, GL_RED, GL_FLOAT, fb.combined.channels[2].pixels.data());
         glUseProgram(program);
         glUniform3fv(color_mul_loc, 1, color_mul.values.data());
         glUniform3fv(color_lum_loc, 1, color_lum.values.data());
-
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture_r);
         glUniform1i(texture_r_loc, 0);
-
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, texture_g);
         glUniform1i(texture_g_loc, 1);
-
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, texture_b);
         glUniform1i(texture_b_loc, 2);
-
         glBindVertexArray(dummy_vertex_array_id);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
     glfwDestroyWindow(window);
-
     glfwTerminate();
-
     aborter.abort();
     render_thread.join();
     return 0;

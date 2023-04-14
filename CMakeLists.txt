@@ -16,6 +16,7 @@ scene.cpp
 scene_light.cpp
 filesystem.cpp
 gltf.cpp
+renderer.cpp
 ${EXTERN_SRC_LIST}
 )
 

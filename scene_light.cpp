@@ -29,68 +29,46 @@
 #include <random>
 #include <utility>
 #include "sampler.h"
+#include "materials/diffuse.h"
 
 namespace luc {
-template<typename T>
-math::vector<T, 3> sample_cosine_hemisphere(T u, T v)
-{
-    const auto z = std::sqrt(u);
-    const auto r = std::sqrt(T(1) - z * z);
-    const auto phi = T(2) * std::numbers::pi_v<T> * v;
-    const math::vector<T, 3> result(r * std::cos(phi), r * std::sin(phi), z);
-    return result;
-}
-
-template<typename T>
-auto sample_cosine_hemisphere_pdf(const math::vector<T, 3>& dir)
-{
-    return (dir.z <= 0) ? T(0) : dir.z / std::numbers::pi_v<T>;
-}
-
-template<typename T>
-std::optional<std::pair<math::vector<T, 3>, math::vector<T, 3>>> sample_and_eval_diffuse(const math::vector<T, 3>& albedo, const math::vector<T, 3>& wo, const std::array<T, 2>& rand)
-{
-    const auto wi = sample_cosine_hemisphere(rand[0], rand[1]);
-    const auto NdotWo = wo.z;
-    const auto NdotWi = wi.z;
-    if (NdotWi * NdotWo <= 0) return std::nullopt;
-    const auto diffuse = albedo / std::numbers::pi_v<T> * NdotWi;
-    return std::make_pair(wi, diffuse);
-}
-
-template<typename T>
-T sample_diffuse_pdf(const math::vector<T, 3>& wo, const math::vector<T, 3>& wi)
-{
-    const auto NdotWo = wo.z;
-    const auto NdotWi = wi.z;
-    if (NdotWi * NdotWo <= 0)
-        return std::numeric_limits<T>::infinity();
-    return sample_cosine_hemisphere_pdf(wi);
-}
-
-template<typename T>
-std::optional<std::pair<math::vector<T, 3>, math::vector<T, 3>>> sample_and_eval_bsdf(const material_sample& material, const math::vector<T, 3>& wo, const std::array<T, 2>& rand)
-{
-    switch (material.type) {
-        case material_type::diffuse:
-            return sample_and_eval_diffuse(material.albedo, wo, rand);
-        default:
-            return std::nullopt;
+template<typename Diffuse>
+struct bsdf {
+    template<typename T>
+    static auto sample(const material_sample& material, const math::vector<T, 3>& wo, const std::array<float, 3>& rand)
+    {
+        return Diffuse::sample(material, wo, rand);
+        switch (material.type) {
+            case material_type::diffuse_material:
+                return Diffuse::sample(material, wo, rand);
+        }
+        return math::vector<T, 3>();
     }
-}
 
-template<typename T>
-auto sample_bsdf_pdf(const material_sample& material, const math::vector<T, 3>& wo, const math::vector<T, 3>& wi)
-{
-    switch (material.type) {
-        case material_type::diffuse:
-            return sample_diffuse_pdf(wo, wi);
-        default:
-            return std::numeric_limits<T>::infinity();
+    template<typename T>
+    static auto eval(const material_sample& material, const math::vector<T, 3>& wo, const math::vector<T, 3>& wi)
+    {
+        return Diffuse::eval(material, wo, wi);
+        switch (material.type) {
+            case material_type::diffuse_material:
+                return Diffuse::eval(material, wo, wi);
+        }
+        return math::vector<T, 3>();
     }
-}
 
-std::optional<std::pair<math::float3, scene::intersection>> scene_light(const luc::scene& scene, std::mt19937& rng, const math::float3& ray_org, const math::float3& ray_dir)
+    template<typename T>
+    static auto pdf(const material_sample& material, const math::vector<T, 3>& wo, const math::vector<T, 3>& wi)
+    {
+        return Diffuse::pdf(material, wo, wi);
+        switch (material.type) {
+            case material_type::diffuse_material:
+                return Diffuse::pdf(material, wo, wi);
+        }
+        return T();
+    }
+};
+
+std::optional<std::pair<math::float3, scene::intersection>> scene_light(const luc::scene& scene, std::mt19937& rng, const math::float3& ray_org, const math::float3& ray_dir, int max_depth)
 {
     std::optional<scene::intersection> first_hit;
     math::float3 throughput(1.f);
@@ -99,47 +77,48 @@ std::optional<std::pair<math::float3, scene::intersection>> scene_light(const lu
         radiance += throughput * light;
     };
     math::float3 org = ray_org, dir = ray_dir;
-    const int max_depth = 500;
     for (int depth = 0; depth < max_depth; depth++) {
         if (const auto hit = scene.intersect(org, dir)) {
             if (!first_hit.has_value())
                 first_hit = *hit;
             if (hit->emission.has_value()) {
                 add_light(*hit->emission);
-                break;
+                goto finished;
             }
-            const math::ortho_normal_base ortho(hit->normal_s);
-            std::uniform_real_distribution<float> uni(0, 1);
-
-            const auto epsilon = std::numeric_limits<float>::epsilon();
-            const math::float3 offset(
-              hit->normal_g.x > 0 ? epsilon : -epsilon,
-              hit->normal_g.y > 0 ? epsilon : -epsilon,
-              hit->normal_g.z > 0 ? epsilon : -epsilon);
+            const auto epsilon = 1e-04f;
+            const auto offset = hit->normal_g * epsilon;
             org = hit->position + offset;
-
-            const std::array<float, 2> rand{ uni(rng), uni(rng) };
-            material_sample material;
-            material.type = material_type::diffuse;
-            material.albedo = hit->albedo;
+            const math::ortho_normal_base ortho(hit->normal_s);
             const auto wo = ortho.to_local(-dir);
-            if (const auto s = sample_and_eval_diffuse(material.albedo, wo, rand)) {
-                math::float3 wi, color;
-                std::tie(wi, color) = *s;
-                const auto pdf = sample_diffuse_pdf(wo, wi);
-                const auto l = color / pdf;
-                throughput *= l;
-                dir = ortho.to_world(wi);
-            }
-            else {
-                break;
-            }
+            std::uniform_real_distribution<float> uni(0, 1);
+            const std::array<float, 3> rand{ uni(rng), uni(rng), uni(rng) };
+
+            material_sample material;
+            material.type = material_type::diffuse_material;
+            material.albedo = hit->albedo;
+            material.roughness = math::clamp<float>(hit->roughness, epsilon, 1.f);
+            material.metallic = hit->metallic;
+            material.specular = hit->specular;
+            material.eta = hit->eta;
+
+            using Shade = bsdf<lambertian_reflection<float>>;
+            const auto wi = Shade::sample(material, wo, rand);
+            dir = ortho.to_world(wi);
+            if (math::dot(dir, hit->normal_g) <= 0)
+                goto abort;
+
+            const auto color = Shade::eval(material, wo, wi);
+            const auto pdf = Shade::pdf(material, wo, wi);
+            const auto l = color / pdf;
+            throughput *= l;
             continue;
         }
         break;
     }
+finished:
     if (first_hit.has_value())
         return std::make_pair(radiance, *first_hit);
+abort:
     return std::nullopt;
 }
 } // namespace luc

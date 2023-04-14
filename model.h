@@ -66,7 +66,7 @@ struct model {
         float emissive_strength = 1.f;
         color<float, 1> metallic;
         color<float, 1> roughness;
-        color<float, 1> ior;
+        color<float, 1> eta;
         color<float, 1> specular;
         color<float, 1> transmission;
     };

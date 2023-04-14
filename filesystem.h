@@ -59,7 +59,7 @@ void save_framebuffer_exr(framebuffer<T>& fb, const std::filesystem::path& path)
     exr_image<T, 1> specular(fb.specular);
     exr_image<T, 1> metallic(fb.metallic);
     exr_image<T, 1> roughness(fb.roughness);
-    exr_image<T, 1> ior(fb.ior);
+    exr_image<T, 1> eta(fb.eta);
     exr_image<T, 1> transmission(fb.transmission);
     std::vector<const EXRHeader *> headers;
     std::vector<EXRImage> images;
@@ -95,9 +95,9 @@ void save_framebuffer_exr(framebuffer<T>& fb, const std::filesystem::path& path)
     strncpy(roughness.header.name, "roughness\0", 255);
     headers.push_back(&roughness.header);
     images.push_back(roughness.image);
-    strncpy(ior.header.name, "ior\0", 255);
-    headers.push_back(&ior.header);
-    images.push_back(ior.image);
+    strncpy(eta.header.name, "eta\0", 255);
+    headers.push_back(&eta.header);
+    images.push_back(eta.image);
     strncpy(transmission.header.name, "transmission\0", 255);
     headers.push_back(&transmission.header);
     images.push_back(transmission.image);

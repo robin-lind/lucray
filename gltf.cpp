@@ -190,31 +190,49 @@ void process_materials(luc::model& model, gltf_ctx& gltf)
         if (gmat.pbrMetallicRoughness.baseColorTexture.index > -1)
             material.albedo.texture = gltf.textures3c.at(gltf.model.images[gltf.model.textures[gmat.pbrMetallicRoughness.baseColorTexture.index].source].name);
         if (gmat.pbrMetallicRoughness.metallicRoughnessTexture.index > -1) {
-            const auto& mr_name = gltf.model.images[gltf.model.textures[gmat.pbrMetallicRoughness.metallicRoughnessTexture.index].source].name;
-            const auto mr_tex = gltf.textures3c.at(mr_name);
-            gltf.textures3c.erase(mr_name);
-            const int width = mr_tex->buffer.width, height = mr_tex->buffer.height;
-            material.roughness.texture = std::make_shared<luc::texture<float, 1>>(width, height);
-            material.metallic.texture = std::make_shared<luc::texture<float, 1>>(width, height);
-            gltf.textures1c.emplace(gmat.name + "[roughness]", *material.roughness.texture);
-            gltf.textures1c.emplace(gmat.name + "[metallic]", *material.metallic.texture);
-            const auto domain = generate_parallel_for_domain_rows(0, width, 0, height);
-            auto tile_func = [&](const work_block<int>& block) {
-                for (auto y = block.tile.miny; y < block.tile.maxy; y++) {
-                    for (auto x = block.tile.minx; x < block.tile.maxx; x++) {
-                        const auto& p = mr_tex->buffer.pixel(x, y);
-                        (*material.roughness.texture)->buffer.pixel(x, y, p.g);
-                        (*material.metallic.texture)->buffer.pixel(x, y, p.b);
+            const auto mr_texture_id = gmat.pbrMetallicRoughness.metallicRoughnessTexture.index;
+            const auto& mr_texture = gltf.model.textures[mr_texture_id];
+            const auto mr_image_id = mr_texture.source;
+            const auto& mr_image = gltf.model.images[mr_image_id];
+            const auto& mr_name = mr_image.name;
+            if (gltf.textures3c.contains(mr_name)) {
+                const auto mr_tex = gltf.textures3c.at(mr_name);
+                gltf.textures3c.erase(mr_name);
+                const int width = mr_tex->buffer.width, height = mr_tex->buffer.height;
+                material.roughness.texture = std::make_shared<luc::texture<float, 1>>(width, height);
+                material.metallic.texture = std::make_shared<luc::texture<float, 1>>(width, height);
+                gltf.textures1c.emplace(mr_name + "[roughness]", *material.roughness.texture);
+                gltf.textures1c.emplace(mr_name + "[metallic]", *material.metallic.texture);
+                const auto domain = generate_parallel_for_domain_rows(0, width, 0, height);
+                auto tile_func = [&](const work_block<int>& block) {
+                    for (auto y = block.tile.miny; y < block.tile.maxy; y++) {
+                        for (auto x = block.tile.minx; x < block.tile.maxx; x++) {
+                            const auto& p = mr_tex->buffer.pixel(x, y);
+                            (*material.roughness.texture)->buffer.pixel(x, y, p.g);
+                            (*material.metallic.texture)->buffer.pixel(x, y, p.b);
+                        }
                     }
-                }
-            };
-            parallel_for(domain, tile_func, nullptr);
+                };
+                parallel_for(domain, tile_func, nullptr);
+            }
+            else {
+                const auto r_key = mr_name + "[roughness]";
+                if (gltf.textures1c.contains(r_key))
+                    material.roughness.texture = gltf.textures1c.at(r_key);
+                else
+                    LOG(ERROR) << "subst failure! unable to find: " << r_key << "\n";
+                const auto m_key = mr_name + "[metallic]";
+                if (gltf.textures1c.contains(m_key))
+                    material.metallic.texture = gltf.textures1c.at(m_key);
+                else
+                    LOG(ERROR) << "subst failure! unable to find: " << m_key << "\n";
+            }
         }
         for (const auto& value : gmat.extensions)
             if (value.first == "KHR_materials_emissive_strength")
                 material.emissive_strength = (float)value.second.Get("emissiveStrength").GetNumberAsDouble();
             else if (value.first == "KHR_materials_ior")
-                material.ior.value.t = (float)value.second.Get("ior").GetNumberAsDouble();
+                material.eta.value.t = (float)value.second.Get("ior").GetNumberAsDouble();
             else if (value.first == "KHR_materials_transmission")
                 material.transmission.value.t = (float)value.second.Get("transmissionFactor").GetNumberAsDouble();
             else if (value.first == "KHR_materials_specular") {

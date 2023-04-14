@@ -24,6 +24,7 @@
 #define SCENE_H
 
 #include <optional>
+#include <random>
 #include "math/vector.h"
 #include "math/matrix.h"
 #include "filesystem.h"
@@ -66,12 +67,16 @@ union triplet {
 };
 
 enum material_type {
-    diffuse
+    diffuse_material
 };
 
 struct material_sample {
     material_type type;
     math::float3 albedo;
+    float roughness;
+    float metallic;
+    float specular;
+    float eta;
 };
 
 struct scene {
@@ -84,7 +89,7 @@ struct scene {
         math::vector<float, 1> specular;
         math::vector<float, 1> metallic;
         math::vector<float, 1> roughness;
-        math::vector<float, 1> ior;
+        math::vector<float, 1> eta;
         math::vector<float, 1> transmission;
     };
 
@@ -117,6 +122,8 @@ struct scene {
     void commit();
     std::optional<intersection> intersect(const math::float3& org, const math::float3& dir) const;
 };
+
+std::optional<std::pair<math::float3, scene::intersection>> scene_light(const scene& scene, std::mt19937& rng, const math::float3& ray_org, const math::float3& ray_dir, int max_depth);
 } // namespace luc
 
 #endif

@@ -274,7 +274,7 @@ std::optional<scene::intersection> scene::intersect(const math::float3& org, con
         result.specular = scene.material.specular.sample(inter.texcoord);
         result.metallic = scene.material.metallic.sample(inter.texcoord);
         result.roughness = scene.material.roughness.sample(inter.texcoord);
-        result.ior = scene.material.ior.sample(inter.texcoord);
+        result.eta = scene.material.eta.sample(inter.texcoord);
         result.transmission = scene.material.transmission.sample(inter.texcoord);
         return result;
     }
