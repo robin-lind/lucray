@@ -78,13 +78,13 @@ struct framebuffer {
     image_n<T, 1> specular;
     image_n<T, 1> metallic;
     image_n<T, 1> roughness;
-    image_n<T, 1> ior;
+    image_n<T, 1> eta;
     image_n<T, 1> transmission;
 
     framebuffer() = default;
 
     framebuffer(int _width, int _height) :
-      width(_width), height(_height), combined(width, height), diffuse_light(width, height), albedo(width, height), shading_normal(width, height), geometry_normal(width, height), position(width, height), emission(width, height), specular(width, height), metallic(width, height), roughness(width, height), ior(width, height), transmission(width, height) {}
+      width(_width), height(_height), combined(width, height), diffuse_light(width, height), albedo(width, height), shading_normal(width, height), geometry_normal(width, height), position(width, height), emission(width, height), specular(width, height), metallic(width, height), roughness(width, height), eta(width, height), transmission(width, height) {}
 };
 } // namespace luc
 #endif

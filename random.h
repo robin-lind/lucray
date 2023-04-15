@@ -20,40 +20,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef DIFFUSE_H
-#define DIFFUSE_H
+#ifndef RANDOM_H
+#define RANDOM_H
 
-#include <limits>
+#include <array>
 #include <numbers>
 #include <cmath>
-#include <utility>
-#include "../math/vector.h"
-#include "../scene.h"
-#include "../random.h"
 
 namespace luc {
-template<typename T>
-struct lambertian_reflection {
-    template<size_t N>
-    static auto sample(const material_sample& material, const math::vector<T, 3>& wo, random_array<T, N>& rand)
-    {
-        const auto z = std::sqrt(rand.random());
-        const auto r = std::sqrt(T(1) - z * z);
-        const auto phi = T(2) * std::numbers::pi_v<T> * rand.random();
-        const math::vector<T, 3> wi(r * std::cos(phi), r * std::sin(phi), z);
-        return wi;
-    }
+template<typename T, size_t N>
+struct random_array {
+    std::array<T, N> elements;
+    int i;
 
-    static auto eval(const material_sample& material, const math::vector<T, 3>& wo, const math::vector<T, 3>& wi)
+    auto random()
     {
-        const auto diffuse = material.albedo / std::numbers::pi_v<T> * wi.z;
-        return diffuse;
-    }
-
-    static auto pdf(const material_sample& material, const math::vector<T, 3>& wo, const math::vector<T, 3>& wi)
-    {
-        const auto p = wi.z / std::numbers::pi_v<T>;
-        return p;
+        return elements[i++ % elements.size()];
     }
 };
 } // namespace luc

@@ -34,8 +34,8 @@
 namespace luc {
 template<typename Diffuse>
 struct bsdf {
-    template<typename T>
-    static auto sample(const material_sample& material, const math::vector<T, 3>& wo, const std::array<float, 3>& rand)
+    template<typename T, size_t N>
+    static auto sample(const material_sample& material, const math::vector<T, 3>& wo, random_array<T, N>& rand)
     {
         return Diffuse::sample(material, wo, rand);
         switch (material.type) {
@@ -83,7 +83,7 @@ std::optional<std::pair<math::float3, scene::intersection>> scene_light(const lu
                 first_hit = *hit;
             if (hit->emission.has_value()) {
                 add_light(*hit->emission);
-                goto finished;
+                break;
             }
             const auto epsilon = 1e-04f;
             const auto offset = hit->normal_g * epsilon;
@@ -91,7 +91,9 @@ std::optional<std::pair<math::float3, scene::intersection>> scene_light(const lu
             const math::ortho_normal_base ortho(hit->normal_s);
             const auto wo = ortho.to_local(-dir);
             std::uniform_real_distribution<float> uni(0, 1);
-            const std::array<float, 3> rand{ uni(rng), uni(rng), uni(rng) };
+            random_array<float, 2> rand;
+            for (auto& r : rand.elements)
+                r = uni(rng);
 
             material_sample material;
             material.type = material_type::diffuse_material;
@@ -105,7 +107,7 @@ std::optional<std::pair<math::float3, scene::intersection>> scene_light(const lu
             const auto wi = Shade::sample(material, wo, rand);
             dir = ortho.to_world(wi);
             if (math::dot(dir, hit->normal_g) <= 0)
-                goto abort;
+                break;
 
             const auto color = Shade::eval(material, wo, wi);
             const auto pdf = Shade::pdf(material, wo, wi);
@@ -115,10 +117,8 @@ std::optional<std::pair<math::float3, scene::intersection>> scene_light(const lu
         }
         break;
     }
-finished:
     if (first_hit.has_value())
         return std::make_pair(radiance, *first_hit);
-abort:
     return std::nullopt;
 }
 } // namespace luc
