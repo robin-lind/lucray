@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
     }
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(GL_message, nullptr);
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
     const char *vertex_shader_text =
       "#version 330 core\n"
       "const vec2 vertices[3] = vec2[3](vec2(-1., 1.), vec2(3., 1.), vec2(-1., -3.));\n"
