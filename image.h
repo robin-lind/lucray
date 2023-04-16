@@ -32,21 +32,21 @@
 #include "parallel_for.h"
 
 namespace luc {
-template<typename TColor>
+template<typename T>
 struct image {
     int width, height;
-    std::vector<TColor> pixels;
+    std::vector<T> pixels;
     image() = default;
 
     image(int _width, int _height) :
       width(_width), height(_height), pixels(width * height) {}
 
-    TColor pixel(int x, int y) const
+    T pixel(int x, int y) const
     {
         return pixels[x + y * width];
     }
 
-    void pixel(int x, int y, const TColor& color)
+    void pixel(int x, int y, const T& color)
     {
         pixels[x + y * width] = color;
     }
@@ -160,6 +160,20 @@ void load_raw_into_image(image<math::vector<T, N>>& image, size_t channels, cons
         }
     };
     parallel_for<int, true>(domain, tile_func, nullptr);
+}
+
+template<typename T, typename U>
+image<U> convert_image(const image<T>& img, auto&& func)
+{
+    image<U> output(img.width, img.height);
+    const auto domain = generate_parallel_for_domain_rows(0, img.width, 0, img.height);
+    auto tile_func = [&](const work_block<int>& block) {
+        for (auto y = block.tile.miny; y < block.tile.maxy; y++)
+            for (auto x = block.tile.minx; x < block.tile.maxx; x++)
+                output.pixel(x, y, func(img.pixel(x, y)));
+    };
+    parallel_for<int, true>(domain, tile_func, nullptr);
+    return output;
 }
 } // namespace luc
 #endif

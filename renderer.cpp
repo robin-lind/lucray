@@ -23,6 +23,7 @@
 #include "renderer.h"
 #include <chrono>
 #include "aixlog.hpp"
+#include <cstdint>
 #include <random>
 #include <cmath>
 #include <vector>
@@ -59,55 +60,64 @@ void render(const settings& s, framebuffer<float>& fb, abort_token& aborter, con
         auto tile_func = [&](const work_block<int>& block) {
             std::random_device rd_inner;
             std::mt19937 rng_inner(rd_inner());
-            const float current_spp(pass);
-            const float inv_next_spp(1. / double(pass + 1));
             auto item_func = [&](const int x, const int y, auto&& transform) {
-                math::vector<float, 3> combined = fb.combined.get(x, y) * current_spp;
-                math::vector<float, 3> diffuse_light = fb.diffuse_light.get(x, y) * current_spp;
-                math::vector<float, 3> albedo = fb.albedo.get(x, y) * current_spp;
-                math::vector<float, 3> shading_normal = fb.shading_normal.get(x, y) * current_spp;
-                math::vector<float, 3> geometry_normal = fb.geometry_normal.get(x, y) * current_spp;
-                math::vector<float, 3> position = fb.position.get(x, y) * current_spp;
-                math::vector<float, 3> emission = fb.emission.get(x, y) * current_spp;
-                math::vector<float, 1> specular = fb.specular.get(x, y) * current_spp;
-                math::vector<float, 1> metallic = fb.metallic.get(x, y) * current_spp;
-                math::vector<float, 1> roughness = fb.roughness.get(x, y) * current_spp;
-                math::vector<float, 1> eta = fb.eta.get(x, y) * current_spp;
-                math::vector<float, 1> transmission = fb.transmission.get(x, y) * current_spp;
+                auto variance = fb.variance.get(x, y);
+                math::vector<float, 3> combined;
+                math::vector<float, 3> diffuse_light;
+                math::vector<float, 3> albedo;
+                math::vector<float, 3> shading_normal;
+                math::vector<float, 3> geometry_normal;
+                math::vector<float, 3> position;
+                math::vector<float, 3> emission;
+                math::vector<float, 1> specular;
+                math::vector<float, 1> metallic;
+                math::vector<float, 1> roughness;
+                math::vector<float, 1> eta;
+                math::vector<float, 1> transmission;
+                size_t hit_count = 0;
                 for (auto& sample : samples) {
                     math::float3 ray_org, ray_dir;
                     std::tie(ray_org, ray_dir) = scene.cameras[s.camera_id].ray(transform(sample.uv));
                     const auto hit = scene_light(scene, rng_inner, ray_org, ray_dir, s.max_depth);
+                    hit_count++;
                     if (hit.has_value()) {
                         const math::float3& light = hit->first;
                         const scene::intersection& inter = hit->second;
-                        combined += math::sanitize(light) * sample.z;
+                        const auto final_l = math::sanitize(light);
+                        combined += final_l;
                         const auto e = inter.emission.has_value() ? *inter.emission : math::float3();
-                        emission += e * sample.z;
-                        diffuse_light += math::sanitize((light - e) / inter.albedo) * sample.z;
-                        albedo += inter.albedo * sample.z;
-                        shading_normal += inter.normal_s * sample.z;
-                        geometry_normal += inter.normal_g * sample.z;
-                        position += inter.position * sample.z;
-                        specular += inter.specular * sample.z;
-                        metallic += inter.metallic * sample.z;
-                        roughness += inter.roughness * sample.z;
-                        eta += inter.eta * sample.z;
-                        transmission += inter.transmission * sample.z;
+                        emission += e;
+                        diffuse_light += math::sanitize((light - e) / inter.albedo);
+                        albedo += inter.albedo;
+                        shading_normal += inter.normal_s;
+                        geometry_normal += inter.normal_g;
+                        position += inter.position;
+                        specular += inter.specular;
+                        metallic += inter.metallic;
+                        roughness += inter.roughness;
+                        eta += inter.eta;
+                        transmission += inter.transmission;
+                        variance.t.push(math::collapse(final_l) * (1.f / 3.f));
                     }
                 }
-                fb.combined.set(x, y, combined * inv_next_spp);
-                fb.diffuse_light.set(x, y, diffuse_light * inv_next_spp);
-                fb.albedo.set(x, y, albedo * inv_next_spp);
-                fb.shading_normal.set(x, y, shading_normal * inv_next_spp);
-                fb.geometry_normal.set(x, y, geometry_normal * inv_next_spp);
-                fb.position.set(x, y, position * inv_next_spp);
-                fb.emission.set(x, y, emission * inv_next_spp);
-                fb.specular.set(x, y, specular * inv_next_spp);
-                fb.metallic.set(x, y, metallic * inv_next_spp);
-                fb.roughness.set(x, y, roughness * inv_next_spp);
-                fb.eta.set(x, y, eta * inv_next_spp);
-                fb.transmission.set(x, y, transmission * inv_next_spp);
+                fb.variance.set(x, y, variance);
+                const auto o_spp = fb.count.get(x, y);
+                const auto n_spp = o_spp + hit_count;
+                fb.count.set(x, y, (uint32_t)n_spp);
+                const auto o_spp_f = static_cast<float>(o_spp);
+                const auto inv_n_spp_f = static_cast<float>(1. / static_cast<double>(n_spp));
+                fb.combined.update(x, y, o_spp_f, inv_n_spp_f, combined);
+                fb.diffuse_light.update(x, y, o_spp_f, inv_n_spp_f, diffuse_light);
+                fb.albedo.update(x, y, o_spp_f, inv_n_spp_f, albedo);
+                fb.shading_normal.update(x, y, o_spp_f, inv_n_spp_f, shading_normal);
+                fb.geometry_normal.update(x, y, o_spp_f, inv_n_spp_f, geometry_normal);
+                fb.position.update(x, y, o_spp_f, inv_n_spp_f, position);
+                fb.emission.update(x, y, o_spp_f, inv_n_spp_f, emission);
+                fb.specular.update(x, y, o_spp_f, inv_n_spp_f, specular);
+                fb.metallic.update(x, y, o_spp_f, inv_n_spp_f, metallic);
+                fb.roughness.update(x, y, o_spp_f, inv_n_spp_f, roughness);
+                fb.eta.update(x, y, o_spp_f, inv_n_spp_f, eta);
+                fb.transmission.update(x, y, o_spp_f, inv_n_spp_f, transmission);
             };
             iterate_over_tile(block, aborter, item_func);
         };

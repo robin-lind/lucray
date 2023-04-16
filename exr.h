@@ -39,18 +39,15 @@ struct exr_image {
     {
         InitEXRHeader(&header);
         InitEXRImage(&image);
-
         header.num_channels = N;
         header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
         header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
         header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
         image.images = (unsigned char **)malloc(sizeof(T *) * header.num_channels);
-
         for (int i = 0; i < N; i++) {
             header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT;
             header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT;
         }
-
         if constexpr (N == 1) {
             strncpy(header.channels[0].name, "R\0", 255);
         }
@@ -69,8 +66,6 @@ struct exr_image {
             strncpy(header.channels[2].name, "G\0", 255);
             strncpy(header.channels[2].name, "R\0", 255);
         }
-
-        auto jesus = (T**)image.images;
         for (int i = 0; i < N; i++)
             ((T**)image.images)[i] = img.channels[N - 1 - i].pixels.data();
         image.width = img.width;

@@ -24,9 +24,12 @@
 #define FILESYSTEM_H
 
 #include <filesystem>
+#include <limits>
+#include "image.h"
 #include "model.h"
 #include "framebuffer.h"
 #include "exr.h"
+#include "stat.h"
 
 namespace luc {
 namespace inner {
@@ -61,10 +64,21 @@ void save_framebuffer_exr(framebuffer<T>& fb, const std::filesystem::path& path)
     exr_image<T, 1> roughness(fb.roughness);
     exr_image<T, 1> eta(fb.eta);
     exr_image<T, 1> transmission(fb.transmission);
+    image_n<T, 1> variance_image;
+    variance_image.width = fb.variance.width;
+    variance_image.height = fb.variance.height;
+    variance_image.channels[0] = convert_image<number_stat<T>, T>(fb.variance.channels[0], [](const number_stat<T>& n) {
+        const auto q = n.quality();
+        if (std::isfinite(q) && q > T())
+            return q;
+        return T();
+    });
+    exr_image<T, 1> variance(variance_image);
     std::vector<const EXRHeader *> headers;
     std::vector<EXRImage> images;
-    headers.reserve(12);
-    images.reserve(12);
+    const auto count = 13;
+    headers.reserve(count);
+    images.reserve(count);
     strncpy(combined.header.name, "combined\0", 255);
     headers.push_back(&combined.header);
     images.push_back(combined.image);
@@ -101,6 +115,9 @@ void save_framebuffer_exr(framebuffer<T>& fb, const std::filesystem::path& path)
     strncpy(transmission.header.name, "transmission\0", 255);
     headers.push_back(&transmission.header);
     images.push_back(transmission.image);
+    strncpy(variance.header.name, "variance\0", 255);
+    headers.push_back(&variance.header);
+    images.push_back(variance.image);
     const auto new_path = (path.parent_path() / path.filename()).replace_extension("exr");
     const char *err = nullptr;
     const auto ret = SaveEXRMultipartImageToFile(images.data(), headers.data(), headers.size(), new_path.c_str(), &err);

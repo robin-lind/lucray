@@ -20,27 +20,48 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef RENDERER_H
-#define RENDERER_H
+#ifndef STAT_H
+#define STAT_H
 
-#include <string>
-#include "framebuffer.h"
-#include "parallel_for.h"
-#include "scene.h"
+#include <cmath>
 
-namespace luc {
-struct settings {
-    int width = 1;
-    int height = 1;
-    int image_scale = 1;
-    int samples_per_pixel = 1;
-    int samples_per_loop = 16;
-    int camera_id = 0;
-    int max_depth = 10;
-    int quality = 100000;
-    std::string image_name;
+//based on: https://www.johndcook.com/blog/standard_deviation/
+template<typename T>
+struct number_stat {
+    int count{};
+    T m{}, s{};
+
+    void push(const T& x)
+    {
+        count++;
+        if (count == 1) {
+            m = x;
+        }
+        else {
+            const auto old_m = m;
+            m += (x - m) / count;
+            s += (x - old_m) * (x - m);
+        }
+    }
+
+    T mean() const
+    {
+        return count > 0 ? m : T();
+    }
+
+    T variance() const
+    {
+        return count > 1 ? s / (count - 1) : T();
+    }
+
+    T stdev() const
+    {
+        return std::sqrt(variance());
+    }
+
+    T quality() const
+    {
+        return -std::log2(variance());
+    }
 };
-void render(const settings& s, framebuffer<float>& framebuffer, abort_token& aborter, const scene& scene);
-} // namespace luc
-
 #endif

@@ -78,13 +78,16 @@ int main(int argc, char *argv[])
     }
     if (!(cmdl("spp") >> s.samples_per_pixel))
         LOG(WARNING) << "No samples per pixel provided! Defaulting to: " << s.samples_per_pixel << " (-s=N)!\n";
-    s.samples_per_pixel = std::max(s.samples_per_pixel, 1);
-    cmdl("spl") >> s.samples_per_loop;
-    s.samples_per_loop = std::max(std::min(s.samples_per_pixel, s.samples_per_loop), std::min(s.samples_per_pixel, 16));
     if (!(cmdl("camera") >> s.camera_id))
         LOG(WARNING) << "No camera selected! Defaulting to: " << s.camera_id << " (-c=N)!\n";
     if (!(cmdl("depth") >> s.max_depth))
         LOG(WARNING) << "No max depth selected! Defaulting to: " << s.max_depth << " (-d=N)!\n";
+    cmdl("spl") >> s.samples_per_loop;
+    cmdl("quality") >> s.quality;
+
+    s.samples_per_pixel = std::max(s.samples_per_pixel, 1);
+    s.samples_per_loop = std::max(std::min(s.samples_per_pixel, s.samples_per_loop), std::min(s.samples_per_pixel, 16));
+    s.quality = std::max(s.quality, 0);
 
     const std::vector<std::string> positional(std::begin(cmdl.pos_args()) + 1, std::end(cmdl.pos_args()));
     if (positional.empty()) {
