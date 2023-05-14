@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set (EXTERN_SRC_LIST
 tinyexr/deps/miniz/miniz.c
 glad/src/glad.c
+pugixml/src/pugixml.cpp
 )
 
 set (SRC_LIST
@@ -24,6 +25,7 @@ set (INCLUDE_LIST
 tinyexr/deps/miniz
 aixlog/include
 glad/include
+pugixml/src
 )
 
 find_package(glfw3 3.3 REQUIRED)
