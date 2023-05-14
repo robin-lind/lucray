@@ -60,9 +60,19 @@ constexpr size_t GiByte(size_t g)
     return MByte(g) * 1024ull;
 }
 
-static constexpr size_t DEFAULT_ARENA_SIZE = KiByte(64);
-#define newARENA(arena, T) new (arena.allocate<T>()) T
+template<typename T = char>
+constexpr size_t size_of(size_t count = 1)
+{
+    const size_t size = sizeof(T);
+    const size_t total_size = size * count;
+    return total_size;
+}
+
+#define newARENA(arena, T) new ((arena).allocate<T>()) T
 #define newA(T) newARENA(arena, T)
+#define newIA(T) newARENA(iarena, T)
+
+static constexpr size_t DEFAULT_ARENA_SIZE = KiByte(64);
 
 struct arena_allocator {
     char *start;
@@ -107,52 +117,86 @@ struct arena_allocator {
             free(start);
     }
 
-    void *alloc(size_t size)
+    [[nodiscard]] void *alloc(size_t size)
     {
+        assert(enough_space(size));
         space_left -= size;
-        assert(space_left > 0);
         void *to_alloc = current;
         current += size;
         return to_alloc;
     }
 
     template<typename T>
-    T *calloc(size_t count)
+    [[nodiscard]] T *allocate(size_t count = 1)
     {
         const auto total_size = sizeof(T) * count;
-        size_t offset = current_offset_required_for_alignment_of<T>();
-        space_left -= total_size + offset;
-        assert(space_left > 0);
-        current += offset;
-        void *to_alloc = current;
-        current += total_size;
-        return static_cast<T *>(to_alloc);
+        const size_t offset = current_offset_required_for_alignment_of<T>();
+        const auto alloc_size = total_size + offset;
+        return static_cast<T *>(alloc(alloc_size));
     }
 
-    template<typename T>
-    T *allocate()
+    template<typename T = char>
+    [[nodiscard]] bool enough_space(size_t count = 1) const
     {
-        constexpr size_t size = sizeof(T);
-        size_t offset = current_offset_required_for_alignment_of<T>();
-        space_left -= size + offset;
-        assert(space_left > 0);
-        current += offset;
-        void *to_alloc = current;
-        current += size;
-        return static_cast<T *>(to_alloc);
+        const size_t size = size_of<T>(count);
+        return space_left >= size;
     }
 
     template<typename T>
-    size_t current_offset_required_for_alignment_of()
+    [[nodiscard]] size_t current_offset_required_for_alignment_of() const
     {
         constexpr size_t alignment = alignof(T);
-        size_t offset = (alignment - (reinterpret_cast<size_t>(current) % alignment)) & (alignment - 1);
+        const size_t offset = (alignment - (reinterpret_cast<size_t>(current) % alignment)) & (alignment - 1);
         return offset;
     }
 
-    auto child(size_t size = std::numeric_limits<size_t>::max())
+    [[nodiscard]] auto child(size_t size = std::numeric_limits<size_t>::max())
     {
         return arena_allocator(*this, size);
+    }
+};
+
+static constexpr size_t DEFAULT_INFINITE_ARENA_SIZE = MiByte(1);
+
+struct infinite_arena {
+    struct arena_node {
+        arena_node *next;
+        arena_node *prev{};
+        arena_allocator arena;
+
+        arena_node(size_t size = DEFAULT_INFINITE_ARENA_SIZE, arena_node *prev = nullptr) :
+          arena(size), prev(prev)
+        {
+            next = arena.allocate<arena_node>();
+        }
+    };
+
+    arena_node *first;
+    arena_node *current;
+
+    infinite_arena()
+    {
+        first = current = new (static_cast<arena_node *>(malloc(sizeof(arena_node)))) arena_node();
+    }
+
+    ~infinite_arena()
+    {
+        arena_node *cur = current;
+        do {
+            cur->arena.~arena_allocator();
+            cur = cur->prev;
+        } while (cur != nullptr);
+    }
+
+    template<typename T>
+    [[nodiscard]] T *allocate(size_t count = 1)
+    {
+        if (!current->arena.enough_space<T>(count)) {
+            const auto size = (((size_of<T>(count) + sizeof(arena_node)) / DEFAULT_INFINITE_ARENA_SIZE) + 1) * DEFAULT_INFINITE_ARENA_SIZE;
+            current = new (current->next) arena_node(size, current);
+        }
+        T *result = current->arena.allocate<T>(count);
+        return result;
     }
 };
 } // namespace luc
